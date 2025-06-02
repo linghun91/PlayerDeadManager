@@ -1,0 +1,125 @@
+# PlayerDeadManager 配置文件
+# 作者: saga
+# 版本: 1.0.0
+
+# 墓碑设置
+tombstone:
+  # 墓碑方块类型 (支持Oraxen自定义方块)
+  block-type: "PLAYER_HEAD"
+  # 自定义模型数据 (用于Oraxen等插件)
+  custom-model-data: 0
+  # 墓碑保护时间 (分钟)
+  protection-time: 60
+  # 墓碑消失时间 (小时)
+  despawn-time: 24
+  # 最大墓碑数量限制
+  max-tombstones: 3
+  # 自动清理间隔 (小时)
+  cleanup-interval: 1
+
+# 保存图腾设置
+totem:
+  # 是否启用保存图腾功能
+  enabled: true
+  # 图腾物品类型
+  item-type: "TOTEM_OF_UNDYING"
+  # 图腾显示名称
+  display-name: "&6保存图腾"
+  # 图腾描述
+  lore:
+    - "&7死亡时消耗1个图腾"
+    - "&7可以保护你的物品和经验"
+    - "&a右键使用"
+  # 自定义模型数据
+  custom-model-data: 0
+
+# 传送GUI设置
+teleport-gui:
+  # GUI标题
+  title: "&8死亡地点传送"
+  # GUI大小 (9的倍数)
+  size: 27
+  # 传送费用 (需要Vault插件)
+  cost: 100.0
+  # 是否启用传送费用
+  cost-enabled: false
+
+# 全息图设置
+hologram:
+  # 是否启用全息图
+  enabled: true
+  # 全息图高度偏移
+  height-offset: 1.5
+  # 全息图内容格式
+  format:
+    - "&6墓碑"
+    - "&7所有者: &f{player}"
+    - "&7死亡时间: &f{time}"
+    - "&7保护剩余: &f{protection}"
+  # 更新间隔 (秒)
+  update-interval: 1
+
+# 粒子效果设置
+particles:
+  # 是否启用粒子效果
+  enabled: true
+  # 粒子类型
+  type: "SOUL"
+  # 粒子数量
+  count: 5
+  # 粒子范围
+  range: 0.5
+  # 粒子生成间隔 (tick)
+  interval: 20
+
+# 通知设置
+notifications:
+  # 是否启用拾取通知
+  looting-notification: true
+  # 是否启用视觉引导
+  visual-guidance: true
+  # 引导范围 (方块)
+  guidance-range: 50
+
+# 经验设置
+experience:
+  # 其他玩家拾取时获得的经验比例
+  public-access-ratio: 0.5
+  # 是否保留经验等级
+  keep-level: false
+
+# 数据库设置
+database:
+  # 数据库文件名
+  filename: "tombstones.db"
+  # 连接池大小
+  pool-size: 5
+  # 连接超时 (秒)
+  timeout: 30
+
+# 世界设置
+worlds:
+  # 启用的世界列表 (空列表表示所有世界)
+  enabled-worlds: []
+  # 禁用的世界列表
+  disabled-worlds:
+    - "world_nether"
+    - "world_the_end"
+
+# 权限设置
+permissions:
+  # 是否启用权限检查
+  enabled: true
+  # 基础权限节点
+  base: "playerdeadmanager.use"
+  # 管理员权限节点
+  admin: "playerdeadmanager.admin"
+
+# 兼容性设置
+compatibility:
+  # Vault经济插件支持
+  vault: true
+  # WorldGuard区域保护支持
+  worldguard: false
+  # GriefPrevention保护支持
+  griefprevention: false
