@@ -1,0 +1,233 @@
+# PlayerDeadManager Message Configuration File
+# Author: saga
+# Version: 1.0.0
+# Supports color codes: &a, &b, &c etc
+# Supports placeholders: {player}, {time}, {location} etc
+
+# Prefix settings
+prefix: "&8[&6PDM&8] "
+
+# Plugin startup/shutdown messages
+plugin:
+  enabled: "&aPlugin enabled! Version: {version}"
+  disabled: "&cPlugin disabled!"
+  reload: "&aConfiguration files reloaded!"
+
+# Tombstone related messages
+tombstone:
+  created: "&aYour tombstone has been created at &f{location}&a!"
+  removed: "&cYour tombstone has been removed!"
+  not-found: "&cTombstone not found!"
+  max-limit: "&cYou have reached the maximum tombstone limit! (&f{current}/{max}&c)"
+  protection-expired: "&eYour tombstone protection has expired, other players can now loot it!"
+  despawned: "&cYour tombstone at &f{location} &chas disappeared!"
+  
+# Item pickup messages
+pickup:
+  success: "&aSuccessfully picked up tombstone items!"
+  experience-restored: "&aExperience restored: &f{exp} &apoints"
+  experience-partial: "&eYou gained &f{exp} &eexperience points ({ratio}% of original)"
+  no-items: "&cNo items in the tombstone!"
+  no-permission: "&cYou don't have permission to loot this tombstone!"
+  still-protected: "&cThis tombstone is still protected! Remaining time: &f{time}"
+  item-taken: "&aSuccessfully took item: &f{item}"
+  experience-taken: "&aSuccessfully took experience: &f{exp} points"
+  inventory-full: "&cYour inventory is full, cannot take more items!"
+  no-experience: "&cNo experience in this tombstone!"
+  tombstone-empty: "&aTombstone is empty, automatically removed!"
+
+# Save totem messages
+totem:
+  used: "&aSave totem activated! Your items and experience are protected!"
+  not-found: "&cYou don't have a save totem!"
+  given: "&aYou received &f{amount} &asave totems!"
+
+# GUI messages
+gui:
+  teleport:
+    title: "&8Death Location Teleport"
+  tombstone-items:
+    title: "&8Tombstone Item Recovery"
+  refreshed: "&aInterface refreshed!"
+  right-click-only: "&cPlease use right-click to take out items!"
+  border:
+    material: "GRAY_STAINED_GLASS_PANE"
+    name: "&7"
+  tombstone:
+    material: "CHEST"
+    name: "&6Tombstone #{index}"
+    lore:
+      location: "&7Location: &f{world} {x}, {y}, {z}"
+      experience: "&7Experience: &f{exp} points"
+      death-time: "&7Death time: &f{time}"
+      protection: "&7Protection expires: &f{time}"
+      click-to-teleport: "&eClick to teleport to this location"
+  items:
+    empty-slot:
+      material: "GRAY_STAINED_GLASS_PANE"
+      name: "&7Empty slot"
+    click-to-take: "&eClick to take this item"
+    cannot-place: "&cYou cannot place items in the tombstone!"
+  buttons:
+    refresh:
+      name: "&aRefresh"
+      lore: "&7Click to refresh tombstone list"
+    close:
+      name: "&cClose"
+      lore: "&7Click to close interface"
+    experience:
+      name: "&bTake Experience"
+      lore: "&7Experience: &f{exp} points\n&eClick to take all experience"
+    no-experience:
+      name: "&7No Experience Available"
+      lore: "&7No experience in this tombstone"
+  
+# GUI item display
+gui-items:
+  tombstone:
+    name: "&6Tombstone #{id}"
+    lore:
+      - "&7Location: &f{world} {x}, {y}, {z}"
+      - "&7Death time: &f{time}"
+      - "&7Protection status: {protection}"
+      - "&7Item count: &f{items}"
+      - "&7Experience: &f{exp}"
+      - ""
+      - "&eClick to teleport to this location"
+      - "&cCost: ${cost}"
+  
+  back:
+    name: "&cBack"
+    lore:
+      - "&7Click to go back"
+  
+  next:
+    name: "&aNext Page"
+    lore:
+      - "&7Click to view next page"
+  
+  close:
+    name: "&cClose"
+    lore:
+      - "&7Click to close GUI"
+
+# Time format
+time:
+  format: "yyyy-MM-dd HH:mm:ss"
+  just-now: "just now"
+  seconds-ago: "{time} seconds ago"
+  minutes-ago: "{time} minutes ago"
+  hours-ago: "{time} hours ago"
+  days-ago: "{time} days ago"
+  expired: "expired"
+  unknown-player: "unknown player"
+
+  # Time unit format
+  duration:
+    days-hours: "{days}d {hours}h"
+    hours-minutes: "{hours}h {minutes}m"
+    minutes-seconds: "{minutes}m {seconds}s"
+    seconds-only: "{seconds}s"
+    minutes-only: "{minutes}m"
+
+# Protection status
+protection:
+  active: "&aProtected ({time})"
+  expired: "&cExpired"
+  public: "&ePublic access"
+
+# Notification messages
+notification:
+  tombstone-looted: "&cYour tombstone was looted by &f{looter}&c! Location: &f{location}"
+  tombstone-found: "&aNearby tombstone found! Distance: &f{distance} &ablocks"
+
+# Permission messages
+permission:
+  no-basic-permission: "&cYou don't have permission to use the tombstone system!"
+  no-gui: "&cYou don't have permission to use GUI interfaces!"
+  no-teleport: "&cYou don't have permission to teleport to tombstones!"
+  no-list: "&cYou don't have permission to view tombstone list!"
+  no-reload: "&cYou don't have permission to reload plugin configuration!"
+  no-gui-specific: "&cYou don't have permission to use {gui_type} GUI!"
+
+# Teleport messages
+teleport:
+  success: "&aSuccessfully teleported to tombstone location: &f{location}"
+  world-not-found: "&cWorld {world} does not exist!"
+
+# Tombstone interaction messages
+tombstone:
+  created: "&aYour tombstone has been created at &f{location}&a!"
+  removed: "&cYour tombstone has been removed!"
+  not-found: "&cTombstone not found!"
+  no-access: "&cYou don't have permission to access this tombstone!"
+  collected: "&aSuccessfully collected tombstone! Gained {items} items and {exp} experience"
+  collection-failed: "&cFailed to collect tombstone, please contact an administrator!"
+  no-space-in-inventory: "&cNot enough inventory space to collect tombstone items!"
+  creation-failed: "&cTombstone creation failed, please contact an administrator!"
+  no-space: "&cCannot place tombstone at this location!"
+  no-items-to-save: "&cNo items to save, tombstone not created"
+  limit-reached: "&cYou have reached the maximum tombstone limit! (Current: {current_tombstones}/{max_tombstones})"
+  oldest-removed: "&eDue to limit reached, your oldest tombstone &f{location} &ehas been automatically removed"
+
+  # Tombstone protection messages
+  protection:
+    blocked: "&cThis tombstone is protected! Owner: &f{owner} &cRemaining protection time: &f{protection_time}"
+
+# Error messages
+error:
+  no-permission: "&cYou don't have permission to perform this action!"
+  player-not-found: "&cPlayer not found!"
+  invalid-location: "&cInvalid location!"
+  database-error: "&cDatabase error, please contact an administrator!"
+  world-disabled: "&cTombstone feature is disabled in this world!"
+  command-error: "&cCommand execution error!"
+
+# Status descriptions
+status:
+  removed: "removed"
+  protection-expired: "protection expired"
+  protected: "protected"
+
+# Entity cleanup messages
+cleanup:
+  started: "&7Starting cleanup of remaining tombstone entities..."
+  completed: "&aEntity cleanup completed - Cleaned blocks: {blocks}, Cleaned holograms: {holograms}"
+  no-entities: "&7No remaining entities found to clean up"
+
+# Log messages (developer logs)
+logs:
+  tombstone-items:
+    load-failed: "Failed to load tombstone items: {error}"
+    remove-failed: "Failed to remove tombstone items: {error}"
+    inventory-add-failed: "Item addition exception: Pre-check passed but actual addition failed, player: {player}"
+  experience:
+    remove-failed: "Failed to remove tombstone experience: {error}"
+  tombstone:
+    empty-check-failed: "Failed to check empty tombstone: {error}"
+  cleanup:
+    entity-cleanup-started: "Starting cleanup of remaining tombstone entities"
+    entity-cleanup-completed: "Entity cleanup completed - Cleaned blocks: {blocks}, Cleaned holograms: {holograms}"
+
+# Command help
+commands:
+  player-only: "&cThis command can only be executed by players!"
+  unknown: "&cUnknown command: {command}. Use /pdm help for help"
+  help:
+    header: "&6=== PlayerDeadManager Help ==="
+    list: "&e/pdm list &7- View your tombstone list"
+    gui: "&e/pdm gui &7- Open teleport GUI interface"
+    teleport: "&e/pdm teleport <number> &7- Teleport to specified tombstone"
+    reload: "&e/pdm reload &7- Reload configuration files &c(admin)"
+    info: "&e/pdm info &7- View plugin information"
+  reload:
+    success: "&aConfiguration files reloaded successfully!"
+  list:
+    header: "&6=== Your Tombstone List ({count} tombstones) ==="
+    item: "&e#{index} &7- &f{world} {x},{y},{z} &7(exp: {exp})"
+    no-tombstones: "&cYou don't have any tombstones!"
+  teleport:
+    usage: "&cUsage: /pdm teleport <tombstone number>"
+    invalid-number: "&cPlease enter a valid number!"
+    invalid-index: "&cInvalid tombstone number! Valid range: 1-{max}"
+  info: "&6PlayerDeadManager &7v{version} &7by {author}"

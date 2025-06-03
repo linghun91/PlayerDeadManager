@@ -1,0 +1,186 @@
+# PlayerDeadManager 配置文件
+# PlayerDeadManager Configuration File
+# 作者: saga
+# Author: saga
+# 版本: 1.0.0
+# Version: 1.0.0
+
+# 语言设置
+# Language Settings
+language:
+  # 语言代码 (zh: 中文, en: 英文)
+  # Language code (zh: Chinese, en: English)
+  code: "en"
+
+# 墓碑设置
+# Tombstone Settings
+tombstone:
+  # 墓碑方块类型 (支持Oraxen自定义方块)
+  # Tombstone block type (supports Oraxen custom blocks)
+  block-type: "PLAYER_HEAD"
+  # 自定义模型数据 (用于Oraxen等插件)
+  # Custom model data (for Oraxen and other plugins)
+  custom-model-data: 0
+  # 墓碑保护时间 (分钟)
+  # Tombstone protection time (minutes)
+  protection-time: 60
+  # 墓碑消失时间 (小时)
+  # Tombstone despawn time (hours)
+  despawn-time: 24
+  # 最大墓碑数量限制
+  # Maximum tombstone limit
+  max-tombstones: 3
+  # 自动清理间隔 (小时)
+  # Auto cleanup interval (hours)
+  cleanup-interval: 1
+
+# 保存图腾设置
+# Save Totem Settings
+totem:
+  # 是否启用保存图腾功能
+  # Enable save totem feature
+  enabled: true
+  # 图腾物品类型
+  # Totem item type
+  item-type: "TOTEM_OF_UNDYING"
+  # 图腾显示名称
+  # Totem display name
+  display-name: "&6保存图腾"
+  # 图腾描述
+  # Totem lore
+  lore:
+    - "&7死亡时消耗1个图腾"
+    - "&7可以保护你的物品和经验"
+    - "&a右键使用"
+  # 自定义模型数据
+  # Custom model data
+  custom-model-data: 0
+
+# 传送GUI设置
+# Teleport GUI Settings
+teleport-gui:
+  # GUI标题
+  # GUI title
+  title: "&8死亡地点传送"
+  # GUI大小 (9的倍数)
+  # GUI size (multiple of 9)
+  size: 27
+  # 传送费用 (需要Vault插件)
+  # Teleport cost (requires Vault plugin)
+  cost: 100.0
+  # 是否启用传送费用
+  # Enable teleport cost
+  cost-enabled: false
+
+# 全息图设置
+# Hologram Settings
+hologram:
+  # 是否启用全息图
+  # Enable hologram
+  enabled: true
+  # 全息图高度偏移
+  # Hologram height offset
+  height-offset: 1.5
+  # 全息图内容格式
+  # Hologram content format
+  format:
+    - "&6墓碑"
+    - "&7所有者: &f{player}"
+    - "&7死亡时间: &f{time}"
+    - "&7保护剩余: &f{protection}"
+  # 更新间隔 (秒)
+  # Update interval (seconds)
+  update-interval: 1
+
+# 粒子效果设置
+# Particle Effects Settings
+particles:
+  # 是否启用粒子效果
+  # Enable particle effects
+  enabled: true
+  # 粒子类型
+  # Particle type
+  type: "SOUL"
+  # 粒子数量
+  # Particle count
+  count: 5
+  # 粒子范围
+  # Particle range
+  range: 0.5
+  # 粒子生成间隔 (tick)
+  # Particle spawn interval (ticks)
+  interval: 20
+
+# 通知设置
+# Notification Settings
+notifications:
+  # 是否启用拾取通知
+  # Enable looting notification
+  looting-notification: true
+  # 是否启用视觉引导
+  # Enable visual guidance
+  visual-guidance: true
+  # 引导范围 (方块)
+  # Guidance range (blocks)
+  guidance-range: 50
+
+# 经验设置
+# Experience Settings
+experience:
+  # 其他玩家拾取时获得的经验比例
+  # Experience ratio when other players loot
+  public-access-ratio: 0.5
+  # 是否保留经验等级
+  # Keep experience level
+  keep-level: false
+
+# 数据库设置
+# Database Settings
+database:
+  # 数据库文件名
+  # Database filename
+  filename: "tombstones.db"
+  # 连接池大小
+  # Connection pool size
+  pool-size: 5
+  # 连接超时 (秒)
+  # Connection timeout (seconds)
+  timeout: 30
+
+# 世界设置
+# World Settings
+worlds:
+  # 启用的世界列表 (空列表表示所有世界)
+  # Enabled worlds list (empty list means all worlds)
+  enabled-worlds: []
+  # 禁用的世界列表
+  # Disabled worlds list
+  disabled-worlds:
+    - "world_nether"
+    - "world_the_end"
+
+# 权限设置
+# Permission Settings
+permissions:
+  # 是否启用权限检查
+  # Enable permission check
+  enabled: true
+  # 基础权限节点
+  # Base permission node
+  base: "playerdeadmanager.use"
+  # 管理员权限节点
+  # Admin permission node
+  admin: "playerdeadmanager.admin"
+
+# 兼容性设置
+# Compatibility Settings
+compatibility:
+  # Vault经济插件支持
+  # Vault economy plugin support
+  vault: true
+  # WorldGuard区域保护支持
+  # WorldGuard region protection support
+  worldguard: false
+  # GriefPrevention保护支持
+  # GriefPrevention protection support
+  griefprevention: false
