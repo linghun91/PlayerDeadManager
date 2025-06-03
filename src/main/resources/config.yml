@@ -137,9 +137,39 @@ experience:
 # 数据库设置
 # Database Settings
 database:
-  # 数据库文件名
-  # Database filename
-  filename: "tombstones.db"
+  # 数据库类型 (sqlite/mysql)
+  # Database type (sqlite/mysql)
+  type: "sqlite"
+  # SQLite设置
+  # SQLite Settings
+  sqlite:
+    # 数据库文件名
+    # Database filename
+    filename: "tombstones.db"
+  # MySQL设置
+  # MySQL Settings
+  mysql:
+    # 数据库主机
+    # Database host
+    host: "localhost"
+    # 数据库端口
+    # Database port
+    port: 3306
+    # 数据库名称
+    # Database name
+    database: "minecraft"
+    # 用户名
+    # Username
+    username: "root"
+    # 密码
+    # Password
+    password: "password"
+    # 表前缀
+    # Table prefix
+    table-prefix: "pdm_"
+    # 是否使用SSL
+    # Use SSL
+    use-ssl: false
   # 连接池大小
   # Connection pool size
   pool-size: 5

@@ -5,10 +5,12 @@ import cn.i7mc.listeners.InventoryClickListener;
 import cn.i7mc.listeners.PlayerDeathListener;
 import cn.i7mc.listeners.PlayerInteractListener;
 import cn.i7mc.listeners.TombstoneProtectionListener;
+import cn.i7mc.abstracts.AbstractDataManager;
 import cn.i7mc.managers.ConfigManager;
 import cn.i7mc.managers.DataManager;
 import cn.i7mc.managers.GUIManager;
 import cn.i7mc.managers.MessageManager;
+import cn.i7mc.managers.MySQLDataManager;
 import cn.i7mc.managers.TombstoneManager;
 import cn.i7mc.metrics.Metrics;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -25,7 +27,7 @@ public class PlayerDeadManager extends JavaPlugin {
 
     private ConfigManager configManager;
     private MessageManager messageManager;
-    private DataManager dataManager;
+    private AbstractDataManager dataManager;
     private TombstoneManager tombstoneManager;
     private GUIManager guiManager;
 
@@ -76,7 +78,7 @@ public class PlayerDeadManager extends JavaPlugin {
         messageManager = new MessageManager(this, configManager);
 
         // 初始化数据管理器
-        dataManager = new DataManager(this);
+        dataManager = createDataManager();
 
         // 初始化GUI管理器
         guiManager = new GUIManager();
@@ -86,6 +88,26 @@ public class PlayerDeadManager extends JavaPlugin {
         tombstoneManager.initialize();
 
         getLogger().info("管理器初始化完成");
+    }
+
+    /**
+     * 创建数据管理器
+     * 根据配置选择数据库类型
+     *
+     * @return 数据管理器实例
+     */
+    private AbstractDataManager createDataManager() {
+        String databaseType = getConfig().getString("database.type", "sqlite").toLowerCase();
+
+        switch (databaseType) {
+            case "mysql":
+                getLogger().info("使用MySQL数据库");
+                return new MySQLDataManager(this);
+            case "sqlite":
+            default:
+                getLogger().info("使用SQLite数据库");
+                return new DataManager(this);
+        }
     }
 
     /**
@@ -157,7 +179,7 @@ public class PlayerDeadManager extends JavaPlugin {
      *
      * @return 数据管理器
      */
-    public DataManager getDataManager() {
+    public AbstractDataManager getDataManager() {
         return dataManager;
     }
 
@@ -275,6 +297,15 @@ public class PlayerDeadManager extends JavaPlugin {
             if (configManager != null) {
                 int maxTombstones = configManager.getConfig().getInt("tombstone.max-tombstones", 3);
                 return String.valueOf(maxTombstones);
+            }
+            return "Unknown";
+        }));
+
+        // 数据库类型统计
+        metrics.addCustomChart(new Metrics.SimplePie("database_type", () -> {
+            if (configManager != null) {
+                String databaseType = configManager.getConfig().getString("database.type", "sqlite");
+                return databaseType.toUpperCase();
             }
             return "Unknown";
         }));

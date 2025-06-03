@@ -1,6 +1,7 @@
 package cn.i7mc.managers;
 
 import cn.i7mc.PlayerDeadManager;
+import cn.i7mc.abstracts.AbstractDataManager;
 import cn.i7mc.tombstones.PlayerTombstone;
 import cn.i7mc.utils.EntityCleanupManager;
 import cn.i7mc.utils.HologramUtil;
@@ -35,7 +36,7 @@ public class TombstoneManager {
     private final PlayerDeadManager plugin;
     private final ConfigManager configManager;
     private final MessageManager messageManager;
-    private final DataManager dataManager;
+    private final AbstractDataManager dataManager;
     private final HologramUtil hologramUtil;
     private final ParticleUtil particleUtil;
     private final EntityCleanupManager entityCleanupManager;
@@ -52,7 +53,7 @@ public class TombstoneManager {
      * @param dataManager 数据管理器
      */
     public TombstoneManager(@NotNull PlayerDeadManager plugin, @NotNull ConfigManager configManager,
-                           @NotNull MessageManager messageManager, @NotNull DataManager dataManager) {
+                           @NotNull MessageManager messageManager, @NotNull AbstractDataManager dataManager) {
         this.plugin = plugin;
         this.configManager = configManager;
         this.messageManager = messageManager;
@@ -171,7 +172,7 @@ public class TombstoneManager {
         int maxTombstones = configManager.getInt("tombstone.max-tombstones", 3);
 
         // 获取玩家当前墓碑数量
-        List<DataManager.TombstoneData> playerTombstones = getPlayerTombstones(player.getUniqueId());
+        List<AbstractDataManager.TombstoneData> playerTombstones = getPlayerTombstones(player.getUniqueId());
 
         if (playerTombstones.size() >= maxTombstones) {
             // 尝试删除最旧的墓碑
@@ -197,13 +198,13 @@ public class TombstoneManager {
      * @param tombstones 墓碑列表
      * @return 是否成功移除
      */
-    private boolean removeOldestTombstone(@NotNull Player player, @NotNull List<DataManager.TombstoneData> tombstones) {
+    private boolean removeOldestTombstone(@NotNull Player player, @NotNull List<AbstractDataManager.TombstoneData> tombstones) {
         if (tombstones.isEmpty()) {
             return false;
         }
 
         // 找到最旧的墓碑
-        DataManager.TombstoneData oldestTombstone = tombstones.stream()
+        AbstractDataManager.TombstoneData oldestTombstone = tombstones.stream()
             .min((t1, t2) -> Long.compare(t1.deathTime(), t2.deathTime()))
             .orElse(null);
 
@@ -493,7 +494,7 @@ public class TombstoneManager {
      * @return 墓碑数据列表
      */
     @NotNull
-    public List<DataManager.TombstoneData> getPlayerTombstones(@NotNull UUID playerId) {
+    public List<AbstractDataManager.TombstoneData> getPlayerTombstones(@NotNull UUID playerId) {
         try {
             return dataManager.getPlayerTombstones(playerId);
         } catch (SQLException e) {
@@ -533,11 +534,11 @@ public class TombstoneManager {
      */
     private void restoreTombstonesFromDatabase() {
         try {
-            List<DataManager.TombstoneData> allTombstones = dataManager.getAllTombstones();
+            List<AbstractDataManager.TombstoneData> allTombstones = dataManager.getAllTombstones();
             int restoredCount = 0;
             int expiredCount = 0;
 
-            for (DataManager.TombstoneData tombstoneData : allTombstones) {
+            for (AbstractDataManager.TombstoneData tombstoneData : allTombstones) {
                 // 检查墓碑是否已过期
                 if (System.currentTimeMillis() > tombstoneData.protectionExpire()) {
                     // 删除过期墓碑

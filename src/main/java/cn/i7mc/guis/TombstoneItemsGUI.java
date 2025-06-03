@@ -3,7 +3,7 @@ package cn.i7mc.guis;
 import cn.i7mc.PlayerDeadManager;
 import cn.i7mc.abstracts.AbstractGUI;
 import cn.i7mc.managers.ConfigManager;
-import cn.i7mc.managers.DataManager;
+import cn.i7mc.abstracts.AbstractDataManager;
 import cn.i7mc.managers.MessageManager;
 import cn.i7mc.managers.TombstoneManager;
 import cn.i7mc.tombstones.PlayerTombstone;
@@ -35,7 +35,7 @@ public class TombstoneItemsGUI extends AbstractGUI {
     private final MessageManager messageManager;
     private final TombstoneManager tombstoneManager;
     private final PlayerTombstone tombstone;
-    private List<DataManager.TombstoneItemData> tombstoneItems;
+    private List<AbstractDataManager.TombstoneItemData> tombstoneItems;
     
     /**
      * 构造函数
@@ -127,7 +127,7 @@ public class TombstoneItemsGUI extends AbstractGUI {
         // 第1-5行用于展示物品（槽位0-44）
         for (int slot = 0; slot < 45; slot++) {
             if (slot < tombstoneItems.size()) {
-                DataManager.TombstoneItemData itemData = tombstoneItems.get(slot);
+                AbstractDataManager.TombstoneItemData itemData = tombstoneItems.get(slot);
                 ItemStack item = itemData.item();
 
                 if (item != null && item.getType() != Material.AIR) {
@@ -371,7 +371,7 @@ public class TombstoneItemsGUI extends AbstractGUI {
             return;
         }
 
-        DataManager.TombstoneItemData itemData = tombstoneItems.get(slot);
+        AbstractDataManager.TombstoneItemData itemData = tombstoneItems.get(slot);
         ItemStack item = itemData.item();
 
         if (item == null || item.getType() == Material.AIR) {
