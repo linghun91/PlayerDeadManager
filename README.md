@@ -28,41 +28,46 @@ PlayerDeadManager/
 ├── src/main/java/cn/i7mc/
 │   ├── PlayerDeadManager.java            # 主插件类
 │   ├── abstracts/                        # 抽象类目录
-│   │   ├── AbstractTombstone.java        # 墓碑抽象类
+│   │   ├── AbstractDataManager.java      # 数据管理抽象类
 │   │   ├── AbstractGUI.java              # GUI抽象类
-│   │   └── AbstractDataManager.java      # 数据管理抽象类
-│   ├── managers/                          # 管理器类
-│   │   ├── TombstoneManager.java         # 墓碑管理器
-│   │   ├── DataManager.java              # SQLite数据管理器
-│   │   ├── MySQLDataManager.java         # MySQL数据管理器(预留)
-│   │   ├── ConfigManager.java            # 配置管理器
-│   │   ├── MessageManager.java           # 消息管理器
-│   │   └── GUIManager.java               # GUI管理器
-│   ├── listeners/                         # 事件监听器
-│   │   ├── PlayerDeathListener.java      # 玩家死亡监听
-│   │   ├── PlayerInteractListener.java   # 玩家交互监听
-│   │   ├── InventoryClickListener.java   # GUI点击监听
-│   │   └── TombstoneProtectionListener.java # 墓碑保护监听
+│   │   ├── AbstractTombstone.java        # 墓碑抽象类
+│   │   └── AbstractTombstoneInstance.java # 墓碑实例抽象类
+│   ├── commands/                         # 指令处理
+│   │   └── PDMCommand.java               # 主指令处理
 │   ├── guis/                             # GUI界面
 │   │   ├── TeleportGUI.java              # 传送GUI
 │   │   └── TombstoneItemsGUI.java        # 墓碑物品GUI
-│   ├── commands/                         # 指令处理
-│   │   └── PDMCommand.java               # 主指令处理
-│   ├── tombstones/                       # 墓碑实现类
-│   │   └── PlayerTombstone.java          # 玩家墓碑类
+│   ├── listeners/                         # 事件监听器
+│   │   ├── InventoryClickListener.java   # GUI点击监听
+│   │   ├── PlayerDeathListener.java      # 玩家死亡监听
+│   │   ├── PlayerInteractListener.java   # 玩家交互监听
+│   │   └── TombstoneProtectionListener.java # 墓碑保护监听
+│   ├── managers/                          # 管理器类
+│   │   ├── ConfigManager.java            # 配置管理器
+│   │   ├── DataManager.java              # SQLite数据管理器
+│   │   ├── EconomyManager.java           # 经济管理器
+│   │   ├── GUIManager.java               # GUI管理器
+│   │   ├── MessageManager.java           # 消息管理器
+│   │   ├── MySQLDataManager.java         # MySQL数据管理器(预留)
+│   │   ├── TombstoneManager.java         # 墓碑管理器
+│   │   ├── VipExemptionManager.java      # VIP豁免管理器
+│   │   ├── VipTimeManager.java           # VIP时间管理器
+│   │   └── WorldConfigManager.java       # 世界配置管理器
 │   ├── metrics/                          # 统计相关
 │   │   └── Metrics.java                  # bStats统计
+│   ├── tombstones/                       # 墓碑实现类
+│   │   └── PlayerTombstone.java          # 玩家墓碑类
 │   └── utils/                            # 工具类
-│       ├── LocationUtil.java             # 位置工具
-│       ├── TimeUtil.java                 # 时间工具
+│       ├── EntityCleanupManager.java     # 实体清理管理器
 │       ├── HologramUtil.java             # 全息图工具
+│       ├── LocationUtil.java             # 位置工具
 │       ├── ParticleUtil.java             # 粒子效果工具
-│       └── EntityCleanupManager.java     # 实体清理管理器
+│       └── TimeUtil.java                 # 时间工具
 └── src/main/resources/
-    ├── plugin.yml                        # 插件描述文件
     ├── config.yml                        # 主配置文件
     ├── message.yml                       # 中文消息配置文件
-    └── message_en.yml                    # 英文消息配置文件
+    ├── message_en.yml                    # 英文消息配置文件
+    └── plugin.yml                        # 插件描述文件
 ```
 
 ## 🎯 核心功能详解
