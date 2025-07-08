@@ -159,6 +159,9 @@ teleport:
 tombstone:
   created: "&aYour tombstone has been created at &f{location}&a!"
   removed: "&cYour tombstone has been removed!"
+  removed-by-owner: "&aYou have successfully removed your own tombstone!"
+  use-right-click: "&ePlease right-click the tombstone to collect items, don't break it!"
+  admin-use-command: "&cTombstone skull is protected and cannot be broken! Please use admin command &f/pdm remove {tombstone_id} &cto remove the tombstone."
   not-found: "&cTombstone not found!"
   no-access: "&cYou don't have permission to access this tombstone!"
   collected: "&aSuccessfully collected tombstone! Gained {items} items and {exp} experience"

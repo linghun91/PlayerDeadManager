@@ -1,7 +1,6 @@
 package cn.i7mc.managers;
 
 import cn.i7mc.PlayerDeadManager;
-import cn.i7mc.abstracts.AbstractDataManager;
 import cn.i7mc.tombstones.PlayerTombstone;
 import cn.i7mc.utils.EntityCleanupManager;
 import cn.i7mc.utils.HologramUtil;
@@ -10,6 +9,7 @@ import cn.i7mc.utils.TimeUtil;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -19,6 +19,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -36,7 +37,7 @@ public class TombstoneManager {
     private final PlayerDeadManager plugin;
     private final ConfigManager configManager;
     private final MessageManager messageManager;
-    private final AbstractDataManager dataManager;
+    private final DataManager dataManager;
     private final HologramUtil hologramUtil;
     private final ParticleUtil particleUtil;
     private final EntityCleanupManager entityCleanupManager;
@@ -53,7 +54,7 @@ public class TombstoneManager {
      * @param dataManager 数据管理器
      */
     public TombstoneManager(@NotNull PlayerDeadManager plugin, @NotNull ConfigManager configManager,
-                           @NotNull MessageManager messageManager, @NotNull AbstractDataManager dataManager) {
+                           @NotNull MessageManager messageManager, @NotNull DataManager dataManager) {
         this.plugin = plugin;
         this.configManager = configManager;
         this.messageManager = messageManager;
@@ -99,12 +100,18 @@ public class TombstoneManager {
                 }
             }
 
-            // 计算保护过期时间
+            // 计算保护过期时间和消失时间（支持VIP权限时间）
             long currentTime = System.currentTimeMillis();
-            long protectionMinutes = configManager.getLong("tombstone.protection-time", 60); // 默认60分钟
+            VipTimeManager vipTimeManager = plugin.getVipTimeManager();
+
+            long protectionMinutes = vipTimeManager.getProtectionTime(player);
             long protectionDuration = TimeUtil.minutesToMillis(protectionMinutes);
             long protectionExpire = currentTime + protectionDuration;
-            
+
+            long despawnHours = vipTimeManager.getDespawnTime(player);
+            long despawnDuration = TimeUtil.hoursToMillis(despawnHours);
+            long despawnTime = currentTime + despawnDuration;
+
             // 保存到数据库
             long tombstoneId = dataManager.saveTombstone(
                 player.getUniqueId(),
@@ -114,6 +121,7 @@ public class TombstoneManager {
                 location.getBlockZ(),
                 currentTime,
                 protectionExpire,
+                despawnTime,
                 experience,
                 items
             );
@@ -124,19 +132,23 @@ public class TombstoneManager {
                 location,
                 currentTime,
                 protectionExpire,
+                despawnTime,
                 experience,
                 tombstoneId
             );
             
             // 放置墓碑方块
-            placeTombstoneBlock(location, tombstoneId);
+            placeTombstoneBlock(location, tombstoneId, player.getUniqueId());
             
             // 添加到活跃墓碑列表
             activeTombstones.put(location, tombstone);
 
             // 创建全息图和粒子效果
             hologramUtil.createHologram(tombstone);
+            tombstone.setHasHologram(true);
+
             particleUtil.createParticleEffect(tombstone);
+            tombstone.setHasParticles(true);
 
             // 发送成功消息
             Map<String, String> placeholders = messageManager.createPlaceholders();
@@ -172,7 +184,7 @@ public class TombstoneManager {
         int maxTombstones = configManager.getInt("tombstone.max-tombstones", 3);
 
         // 获取玩家当前墓碑数量
-        List<AbstractDataManager.TombstoneData> playerTombstones = getPlayerTombstones(player.getUniqueId());
+        List<DataManager.TombstoneData> playerTombstones = getPlayerTombstones(player.getUniqueId());
 
         if (playerTombstones.size() >= maxTombstones) {
             // 尝试删除最旧的墓碑
@@ -198,13 +210,13 @@ public class TombstoneManager {
      * @param tombstones 墓碑列表
      * @return 是否成功移除
      */
-    private boolean removeOldestTombstone(@NotNull Player player, @NotNull List<AbstractDataManager.TombstoneData> tombstones) {
+    private boolean removeOldestTombstone(@NotNull Player player, @NotNull List<DataManager.TombstoneData> tombstones) {
         if (tombstones.isEmpty()) {
             return false;
         }
 
         // 找到最旧的墓碑
-        AbstractDataManager.TombstoneData oldestTombstone = tombstones.stream()
+        DataManager.TombstoneData oldestTombstone = tombstones.stream()
             .min((t1, t2) -> Long.compare(t1.deathTime(), t2.deathTime()))
             .orElse(null);
 
@@ -302,8 +314,9 @@ public class TombstoneManager {
      *
      * @param location 位置
      * @param tombstoneId 墓碑ID
+     * @param playerUuid 玩家UUID（用于设置头颅皮肤）
      */
-    private void placeTombstoneBlock(@NotNull Location location, long tombstoneId) {
+    private void placeTombstoneBlock(@NotNull Location location, long tombstoneId, @NotNull UUID playerUuid) {
         Block block = location.getBlock();
 
         // 获取配置的墓碑方块类型
@@ -326,9 +339,19 @@ public class TombstoneManager {
         // 根据Paper API，TileState（包括Skull）都实现了PersistentDataHolder
         if (state instanceof org.bukkit.block.TileState tileState) {
             tileState.getPersistentDataContainer().set(tombstoneKey, PersistentDataType.LONG, tombstoneId);
+
+            // 如果是玩家头颅，设置玩家皮肤
+            if (state instanceof org.bukkit.block.Skull skull && tombstoneMaterial == Material.PLAYER_HEAD) {
+                try {
+                    // 使用Paper API设置头颅所有者
+                    OfflinePlayer offlinePlayer = plugin.getServer().getOfflinePlayer(playerUuid);
+                    skull.setOwningPlayer(offlinePlayer);
+                } catch (Exception e) {
+                    plugin.getLogger().warning("设置头颅皮肤失败: " + e.getMessage());
+                }
+            }
+
             tileState.update();
-
-
         } else {
             plugin.getLogger().warning("方块状态不是TileState，无法存储PersistentData: " + state.getClass().getSimpleName() +
                 " 在位置 " + location.getWorld().getName() + " " + location.getBlockX() + "," +
@@ -349,25 +372,95 @@ public class TombstoneManager {
             return false;
         }
 
+        return removeTombstoneInternal(location, tombstone, true);
+    }
+
+    /**
+     * 内部墓碑移除方法
+     * 统一的内部移除逻辑，支持数据库操作控制
+     *
+     * @param location 墓碑位置
+     * @param tombstone 墓碑实例
+     * @param deleteFromDatabase 是否从数据库删除
+     * @return 是否成功移除
+     */
+    private boolean removeTombstoneInternal(@NotNull Location location,
+                                          @NotNull PlayerTombstone tombstone,
+                                          boolean deleteFromDatabase) {
+        boolean success = true;
+        List<String> errors = new ArrayList<>();
+
         try {
-            // 移除全息图和粒子效果
-            hologramUtil.removeHologram(location);
-            particleUtil.removeParticleEffect(location);
-
-            // 从数据库删除
-            dataManager.deleteTombstone(tombstone.getTombstoneId());
-
-            // 移除方块
-            Block block = location.getBlock();
-            block.setType(Material.AIR);
-
-            // 从活跃列表移除
+            // 1. 先从活跃列表移除，避免并发问题
             activeTombstones.remove(location);
 
-            return true;
+            // 2. 移除全息图（使用try-catch确保即使失败也继续清理）
+            if (tombstone.hasHologram()) {
+                try {
+                    hologramUtil.removeHologram(location);
+                    tombstone.setHasHologram(false);
+                } catch (Exception e) {
+                    errors.add("移除全息图失败: " + e.getMessage());
+                    success = false;
+                }
+            }
 
-        } catch (SQLException e) {
-            plugin.getLogger().severe("移除墓碑时数据库错误: " + e.getMessage());
+            // 3. 额外的全息图清理保障（通过墓碑ID清理）
+            try {
+                int cleanedHolograms = entityCleanupManager.cleanupHologramsByTombstoneId(
+                    tombstone.getTombstoneId(), location.getWorld());
+                if (cleanedHolograms > 0) {
+                    plugin.getLogger().info("额外清理了 " + cleanedHolograms + " 个残留全息图实体");
+                    tombstone.setHasHologram(false);
+                }
+            } catch (Exception e) {
+                errors.add("额外全息图清理失败: " + e.getMessage());
+            }
+
+            // 4. 移除粒子效果
+            if (tombstone.hasParticles()) {
+                try {
+                    particleUtil.removeParticleEffect(location);
+                    tombstone.setHasParticles(false);
+                } catch (Exception e) {
+                    errors.add("移除粒子效果失败: " + e.getMessage());
+                    success = false;
+                }
+            }
+
+            // 5. 移除方块
+            try {
+                tombstone.removeTombstone(); // 使用统一的墓碑移除方法
+            } catch (Exception e) {
+                errors.add("移除方块失败: " + e.getMessage());
+                success = false;
+            }
+
+            // 6. 从数据库删除（如果需要）
+            if (deleteFromDatabase) {
+                try {
+                    dataManager.deleteTombstone(tombstone.getTombstoneId());
+                } catch (SQLException e) {
+                    errors.add("数据库删除失败: " + e.getMessage());
+                    success = false;
+                }
+            }
+
+            // 7. 标记整体实例为已移除
+            tombstone.markAsRemoved();
+
+            // 记录错误信息
+            if (!errors.isEmpty()) {
+                plugin.getLogger().warning("墓碑移除过程中出现错误:");
+                for (String error : errors) {
+                    plugin.getLogger().warning("  - " + error);
+                }
+            }
+
+            return success;
+
+        } catch (Exception e) {
+            plugin.getLogger().severe("移除墓碑时发生未预期错误: " + e.getMessage());
             e.printStackTrace();
             return false;
         }
@@ -494,7 +587,7 @@ public class TombstoneManager {
      * @return 墓碑数据列表
      */
     @NotNull
-    public List<AbstractDataManager.TombstoneData> getPlayerTombstones(@NotNull UUID playerId) {
+    public List<DataManager.TombstoneData> getPlayerTombstones(@NotNull UUID playerId) {
         try {
             return dataManager.getPlayerTombstones(playerId);
         } catch (SQLException e) {
@@ -534,14 +627,16 @@ public class TombstoneManager {
      */
     private void restoreTombstonesFromDatabase() {
         try {
-            List<AbstractDataManager.TombstoneData> allTombstones = dataManager.getAllTombstones();
+            List<DataManager.TombstoneData> allTombstones = dataManager.getAllTombstones();
             int restoredCount = 0;
             int expiredCount = 0;
 
-            for (AbstractDataManager.TombstoneData tombstoneData : allTombstones) {
-                // 检查墓碑是否已过期
-                if (System.currentTimeMillis() > tombstoneData.protectionExpire()) {
-                    // 删除过期墓碑
+            for (DataManager.TombstoneData tombstoneData : allTombstones) {
+                // 检查墓碑是否已达到despawn-time，需要完全移除
+                long currentTime = System.currentTimeMillis();
+
+                if (currentTime > tombstoneData.despawnTime()) {
+                    // 删除已达到despawn-time的墓碑
                     dataManager.deleteTombstone(tombstoneData.id());
                     expiredCount++;
                     continue;
@@ -567,12 +662,13 @@ public class TombstoneManager {
                     location,
                     tombstoneData.deathTime(),
                     tombstoneData.protectionExpire(),
+                    tombstoneData.despawnTime(),
                     tombstoneData.experience(),
                     tombstoneData.id()
                 );
 
                 // 恢复墓碑方块
-                placeTombstoneBlock(location, tombstoneData.id());
+                placeTombstoneBlock(location, tombstoneData.id(), tombstoneData.playerUuid());
 
                 // 添加到活跃墓碑列表
                 activeTombstones.put(location, tombstone);
@@ -632,10 +728,13 @@ public class TombstoneManager {
 
                 if (cleanedCount > 0) {
                     plugin.getLogger().info("定时清理完成 - 清理了 " + cleanedCount + " 个过期墓碑");
-
-                    // 同步更新活跃墓碑列表
-                    plugin.getServer().getScheduler().runTask(plugin, this::updateActiveTombstones);
                 }
+
+                // 同步更新活跃墓碑列表和完整性检查
+                plugin.getServer().getScheduler().runTask(plugin, () -> {
+                    updateActiveTombstones();
+                    checkAndCleanupIncompleteTombstones();
+                });
 
             } catch (SQLException e) {
                 plugin.getLogger().severe("定时清理墓碑时数据库错误: " + e.getMessage());
@@ -647,26 +746,92 @@ public class TombstoneManager {
     }
 
     /**
+     * 检查并清理不完整的墓碑实例
+     * 统一的完整性检查和清理方法
+     */
+    public void checkAndCleanupIncompleteTombstones() {
+        List<Location> incompleteLocations = new ArrayList<>();
+
+        // 检查所有活跃墓碑的完整性
+        for (Map.Entry<Location, PlayerTombstone> entry : activeTombstones.entrySet()) {
+            Location location = entry.getKey();
+            PlayerTombstone tombstone = entry.getValue();
+
+            // 检查墓碑实例是否完整
+            if (!tombstone.isComplete()) {
+                incompleteLocations.add(location);
+                plugin.getLogger().info("发现不完整的墓碑实例，位置: " +
+                    location.getWorld().getName() + " " + location.getBlockX() +
+                    "," + location.getBlockY() + "," + location.getBlockZ());
+            }
+        }
+
+        // 清理不完整的墓碑实例
+        for (Location location : incompleteLocations) {
+            PlayerTombstone tombstone = activeTombstones.get(location);
+            if (tombstone != null) {
+                try {
+                    removeTombstoneInternal(location, tombstone, true);
+                    plugin.getLogger().info("已清理不完整的墓碑实例");
+                } catch (Exception e) {
+                    plugin.getLogger().warning("清理不完整墓碑实例时发生错误: " + e.getMessage());
+                }
+            }
+        }
+    }
+
+    /**
      * 更新活跃墓碑列表
      * 统一的活跃墓碑更新方法
      */
     private void updateActiveTombstones() {
-        // 移除已过期的墓碑
-        activeTombstones.entrySet().removeIf(entry -> {
+        // 收集需要移除的过期墓碑
+        List<Location> expiredLocations = new ArrayList<>();
+
+        // 先找出所有过期的墓碑位置
+        for (Map.Entry<Location, PlayerTombstone> entry : activeTombstones.entrySet()) {
             Location location = entry.getKey();
             PlayerTombstone tombstone = entry.getValue();
 
-            // 检查墓碑是否已过期 (24小时后)
-            long despawnTime = configManager.getLong("tombstone.despawn-time", 24) * 60 * 60 * 1000;
-            if (System.currentTimeMillis() - tombstone.getDeathTime() > despawnTime) {
-                // 移除方块和效果
-                location.getBlock().setType(Material.AIR);
-                hologramUtil.removeHologram(location);
-                particleUtil.removeParticleEffect(location);
-                return true;
+            // 使用墓碑实例的精确despawn检查方法
+            if (tombstone.shouldDespawn() || !tombstone.isComplete()) {
+                expiredLocations.add(location);
             }
+        }
 
-            return false;
-        });
+        // 逐个安全移除过期墓碑
+        for (Location location : expiredLocations) {
+            PlayerTombstone tombstone = activeTombstones.get(location);
+            if (tombstone != null) {
+                try {
+                    // 使用统一的移除方法，确保数据库同步
+                    removeTombstoneInternal(location, tombstone, false);
+                } catch (Exception e) {
+                    plugin.getLogger().warning("移除过期墓碑时发生错误，位置: " +
+                        location.getWorld().getName() + " " + location.getBlockX() +
+                        "," + location.getBlockY() + "," + location.getBlockZ() +
+                        " - " + e.getMessage());
+
+                    // 即使出错也要尝试清理实体
+                    try {
+                        entityCleanupManager.cleanupTombstoneEntitiesAt(location);
+                        activeTombstones.remove(location);
+                    } catch (Exception cleanupError) {
+                        plugin.getLogger().severe("强制清理墓碑实体失败: " + cleanupError.getMessage());
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * 获取实体清理管理器
+     * 统一的管理器获取方法
+     *
+     * @return 实体清理管理器
+     */
+    @NotNull
+    public EntityCleanupManager getEntityCleanupManager() {
+        return entityCleanupManager;
     }
 }

@@ -1,7 +1,6 @@
 package cn.i7mc.managers;
 
 import cn.i7mc.PlayerDeadManager;
-import cn.i7mc.abstracts.AbstractDataManager;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
 
@@ -12,12 +11,12 @@ import java.util.UUID;
 
 /**
  * MySQL数据管理器 - 实现MySQL数据库操作
- * 继承AbstractDataManager，遵循统一方法原则
- * 
+ * 继承DataManager，遵循统一方法原则
+ *
  * @author saga
  * @version 1.0.0
  */
-public class MySQLDataManager extends AbstractDataManager {
+public class MySQLDataManager extends DataManager {
     
     private final PlayerDeadManager plugin;
     private final String host;
@@ -26,13 +25,15 @@ public class MySQLDataManager extends AbstractDataManager {
     private final String username;
     private final String password;
     private final boolean useSSL;
+    private String tablePrefix = "pdm_";
     
     /**
      * 构造函数
-     * 
+     *
      * @param plugin 插件实例
      */
     public MySQLDataManager(@NotNull PlayerDeadManager plugin) {
+        super(plugin);
         this.plugin = plugin;
         this.host = plugin.getConfig().getString("database.mysql.host", "localhost");
         this.port = plugin.getConfig().getInt("database.mysql.port", 3306);
@@ -40,10 +41,21 @@ public class MySQLDataManager extends AbstractDataManager {
         this.username = plugin.getConfig().getString("database.mysql.username", "root");
         this.password = plugin.getConfig().getString("database.mysql.password", "password");
         this.useSSL = plugin.getConfig().getBoolean("database.mysql.use-ssl", false);
-        
+
         // 设置表前缀
         String prefix = plugin.getConfig().getString("database.mysql.table-prefix", "pdm_");
-        setTablePrefix(prefix);
+        this.tablePrefix = prefix;
+    }
+
+    /**
+     * 获取带前缀的表名
+     * 统一的表名获取方法
+     *
+     * @param tableName 基础表名
+     * @return 带前缀的表名
+     */
+    private String getTableName(String tableName) {
+        return tablePrefix + tableName;
     }
     
     /**
@@ -121,10 +133,25 @@ public class MySQLDataManager extends AbstractDataManager {
                 INDEX idx_tombstone_id (tombstone_id)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         """, getTableName("tombstone_items"), getTableName("tombstones"));
-        
+
+        // 创建玩家豁免记录表
+        String createExemptionsTable = String.format("""
+            CREATE TABLE IF NOT EXISTS %s (
+                id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                player_uuid VARCHAR(36) NOT NULL,
+                exemption_date VARCHAR(10) NOT NULL,
+                used_count INT NOT NULL DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE KEY uk_player_date (player_uuid, exemption_date),
+                INDEX idx_player_uuid (player_uuid),
+                INDEX idx_exemption_date (exemption_date)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        """, getTableName("player_exemptions"));
+
         try (Statement stmt = connection.createStatement()) {
             stmt.execute(createTombstonesTable);
             stmt.execute(createItemsTable);
+            stmt.execute(createExemptionsTable);
             plugin.getLogger().info("MySQL数据库表创建完成");
         }
     }
@@ -145,7 +172,6 @@ public class MySQLDataManager extends AbstractDataManager {
      * @return 墓碑ID
      * @throws SQLException 数据库异常
      */
-    @Override
     public long saveTombstone(@NotNull UUID playerId, @NotNull String worldName,
                              int x, int y, int z, long deathTime, long protectionExpire,
                              int experience, @NotNull ItemStack[] items) throws SQLException {
@@ -209,7 +235,6 @@ public class MySQLDataManager extends AbstractDataManager {
      * @param tombstoneId 墓碑ID
      * @throws SQLException 数据库异常
      */
-    @Override
     public void deleteTombstone(long tombstoneId) throws SQLException {
         String deleteTombstone = String.format("DELETE FROM %s WHERE id = ?", getTableName("tombstones"));
         
@@ -228,7 +253,6 @@ public class MySQLDataManager extends AbstractDataManager {
      * @throws SQLException 数据库异常
      */
     @NotNull
-    @Override
     public List<TombstoneItemData> loadTombstoneItems(long tombstoneId) throws SQLException {
         List<TombstoneItemData> items = new ArrayList<>();
         String query = String.format("""
@@ -267,7 +291,6 @@ public class MySQLDataManager extends AbstractDataManager {
      * @param slotIndex 槽位索引
      * @throws SQLException 数据库异常
      */
-    @Override
     public void removeTombstoneItem(long tombstoneId, int slotIndex) throws SQLException {
         String deleteItem = String.format("""
             DELETE FROM %s WHERE tombstone_id = ? AND slot_index = ?
@@ -311,7 +334,6 @@ public class MySQLDataManager extends AbstractDataManager {
      * @param tombstoneId 墓碑ID
      * @throws SQLException 数据库异常
      */
-    @Override
     public void removeTombstoneExperience(long tombstoneId) throws SQLException {
         String updateExperience = String.format("UPDATE %s SET experience = 0 WHERE id = ?",
                                                getTableName("tombstones"));
@@ -330,25 +352,22 @@ public class MySQLDataManager extends AbstractDataManager {
      * @return 清理的墓碑数量
      * @throws SQLException 数据库异常
      */
-    @Override
     public int cleanupExpiredTombstones(long currentTime) throws SQLException {
 
         String query = String.format("""
-            SELECT id, player_uuid, world_name, x, y, z, death_time, protection_expire, experience
-            FROM %s WHERE death_time < (? - ?)
+            SELECT id, player_uuid, world_name, x, y, z, death_time, protection_expire, despawn_time, experience
+            FROM %s WHERE despawn_time < ?
         """, getTableName("tombstones"));
 
-        List<AbstractDataManager.TombstoneData> expiredTombstones = new ArrayList<>();
+        List<TombstoneData> expiredTombstones = new ArrayList<>();
 
         try (PreparedStatement stmt = connection.prepareStatement(query)) {
-            // 计算24小时的毫秒数
-            long despawnTime = plugin.getConfig().getLong("tombstone.despawn-time", 24) * 60 * 60 * 1000;
+            // 使用当前时间检查despawn_time字段
             stmt.setLong(1, currentTime);
-            stmt.setLong(2, despawnTime);
 
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
-                    expiredTombstones.add(new AbstractDataManager.TombstoneData(
+                    expiredTombstones.add(new TombstoneData(
                         rs.getLong("id"),
                         UUID.fromString(rs.getString("player_uuid")),
                         rs.getString("world_name"),
@@ -357,6 +376,7 @@ public class MySQLDataManager extends AbstractDataManager {
                         rs.getInt("z"),
                         rs.getLong("death_time"),
                         rs.getLong("protection_expire"),
+                        rs.getLong("despawn_time"),
                         rs.getInt("experience")
                     ));
                 }
@@ -365,7 +385,7 @@ public class MySQLDataManager extends AbstractDataManager {
 
         // 删除过期墓碑
         int deletedCount = 0;
-        for (AbstractDataManager.TombstoneData tombstone : expiredTombstones) {
+        for (TombstoneData tombstone : expiredTombstones) {
             try {
                 deleteTombstone(tombstone.id());
                 deletedCount++;
@@ -386,11 +406,10 @@ public class MySQLDataManager extends AbstractDataManager {
      * @throws SQLException 数据库异常
      */
     @NotNull
-    @Override
-    public List<AbstractDataManager.TombstoneData> getPlayerTombstones(@NotNull UUID playerId) throws SQLException {
-        List<AbstractDataManager.TombstoneData> tombstones = new ArrayList<>();
+    public List<TombstoneData> getPlayerTombstones(@NotNull UUID playerId) throws SQLException {
+        List<TombstoneData> tombstones = new ArrayList<>();
         String query = String.format("""
-            SELECT id, world_name, x, y, z, death_time, protection_expire, experience
+            SELECT id, world_name, x, y, z, death_time, protection_expire, despawn_time, experience
             FROM %s WHERE player_uuid = ? ORDER BY death_time DESC
         """, getTableName("tombstones"));
 
@@ -399,7 +418,7 @@ public class MySQLDataManager extends AbstractDataManager {
 
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
-                    AbstractDataManager.TombstoneData data = new AbstractDataManager.TombstoneData(
+                    TombstoneData data = new TombstoneData(
                         rs.getLong("id"),
                         playerId,
                         rs.getString("world_name"),
@@ -408,6 +427,7 @@ public class MySQLDataManager extends AbstractDataManager {
                         rs.getInt("z"),
                         rs.getLong("death_time"),
                         rs.getLong("protection_expire"),
+                        rs.getLong("despawn_time"),
                         rs.getInt("experience")
                     );
                     tombstones.add(data);
@@ -426,11 +446,10 @@ public class MySQLDataManager extends AbstractDataManager {
      * @throws SQLException 数据库异常
      */
     @NotNull
-    @Override
-    public List<AbstractDataManager.TombstoneData> getAllTombstones() throws SQLException {
-        List<AbstractDataManager.TombstoneData> tombstones = new ArrayList<>();
+    public List<TombstoneData> getAllTombstones() throws SQLException {
+        List<TombstoneData> tombstones = new ArrayList<>();
         String query = String.format("""
-            SELECT id, player_uuid, world_name, x, y, z, death_time, protection_expire, experience
+            SELECT id, player_uuid, world_name, x, y, z, death_time, protection_expire, despawn_time, experience
             FROM %s ORDER BY death_time DESC
         """, getTableName("tombstones"));
 
@@ -438,7 +457,7 @@ public class MySQLDataManager extends AbstractDataManager {
              ResultSet rs = stmt.executeQuery()) {
 
             while (rs.next()) {
-                AbstractDataManager.TombstoneData data = new AbstractDataManager.TombstoneData(
+                TombstoneData data = new TombstoneData(
                     rs.getLong("id"),
                     UUID.fromString(rs.getString("player_uuid")),
                     rs.getString("world_name"),
@@ -447,6 +466,7 @@ public class MySQLDataManager extends AbstractDataManager {
                     rs.getInt("z"),
                     rs.getLong("death_time"),
                     rs.getLong("protection_expire"),
+                    rs.getLong("despawn_time"),
                     rs.getInt("experience")
                 );
                 tombstones.add(data);

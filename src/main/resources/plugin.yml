@@ -5,16 +5,17 @@ main: ${main}
 api-version: 1.20
 author: saga
 website: https://github.com/linghun91
+softdepend: [Vault]
 
 commands:
   pdm:
     description: PlayerDeadManager主命令
-    usage: /<command> [help|reload|list|gui|teleport|info]
+    usage: /<command> [help|reload|list|gui|teleport|cleanup|info]
     aliases: [playerdeadmanager]
     permission: playerdeadmanager.use
   playerdeadmanager:
     description: PlayerDeadManager主命令（完整名称）
-    usage: /<command> [help|reload|list|gui|teleport|info]
+    usage: /<command> [help|reload|list|gui|teleport|cleanup|info]
     permission: playerdeadmanager.use
 
 permissions:
@@ -35,9 +36,13 @@ permissions:
     default: op
     children:
       playerdeadmanager.admin.reload: true
+      playerdeadmanager.admin.cleanup: true
       playerdeadmanager.access.expired: true
   playerdeadmanager.admin.reload:
     description: 重载插件配置的权限
+    default: op
+  playerdeadmanager.admin.cleanup:
+    description: 清理残留墓碑实体的权限
     default: op
   playerdeadmanager.gui:
     description: 使用GUI界面的权限
@@ -50,4 +55,40 @@ permissions:
     default: true
   playerdeadmanager.access.expired:
     description: 访问过期墓碑的权限
+    default: op
+  playerdeadmanager.vip1:
+    description: VIP1权限 - 提供更长的墓碑保护和消失时间
+    default: false
+  playerdeadmanager.vip2:
+    description: VIP2权限 - 提供更长的墓碑保护和消失时间
+    default: false
+  playerdeadmanager.vip3:
+    description: VIP3权限 - 提供最长的墓碑保护和消失时间
+    default: false
+  playerdeadmanager.vip.save.1:
+    description: VIP豁免权限 - 每日可免受1次死亡惩罚
+    default: false
+  playerdeadmanager.vip.save.3:
+    description: VIP豁免权限 - 每日可免受3次死亡惩罚
+    default: false
+  playerdeadmanager.vip.save.5:
+    description: VIP豁免权限 - 每日可免受5次死亡惩罚
+    default: false
+  playerdeadmanager.vip.save.10:
+    description: VIP豁免权限 - 每日可免受10次死亡惩罚
+    default: false
+  playerdeadmanager.vip.save.unlimited:
+    description: VIP豁免权限 - 每日可免受无限次死亡惩罚
+    default: false
+  playerdeadmanager.pvp:
+    description: PVP死亡墓碑权限 - 允许在PVP死亡时创建墓碑
+    default: true
+  playerdeadmanager.economy:
+    description: 经济系统权限 - 允许使用死亡扣费保险功能
+    default: true
+  playerdeadmanager.protection:
+    description: 头颅保护权限 - 允许享受头颅完全保护功能
+    default: true
+  playerdeadmanager.bypass.world:
+    description: 绕过世界限制权限 - 允许在禁用世界中使用墓碑功能
     default: op

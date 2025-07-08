@@ -17,9 +17,8 @@ import java.util.UUID;
  * @version 1.0.0
  */
 public abstract class AbstractDataManager {
-
+    
     protected Connection connection;
-    protected String tablePrefix = "";
     
     /**
      * 初始化数据库连接
@@ -145,149 +144,12 @@ public abstract class AbstractDataManager {
     /**
      * 获取当前时间戳
      * 统一的时间戳获取方法
-     *
+     * 
      * @return 当前时间戳
      */
     protected long getCurrentTimestamp() {
         return System.currentTimeMillis();
     }
-
-    /**
-     * 设置表前缀
-     * 统一的表前缀设置方法
-     *
-     * @param prefix 表前缀
-     */
-    public void setTablePrefix(@NotNull String prefix) {
-        this.tablePrefix = prefix != null ? prefix : "";
-    }
-
-    /**
-     * 获取带前缀的表名
-     * 统一的表名获取方法
-     *
-     * @param tableName 原始表名
-     * @return 带前缀的表名
-     */
-    @NotNull
-    protected String getTableName(@NotNull String tableName) {
-        return tablePrefix + tableName;
-    }
-
-    /**
-     * 加载墓碑物品
-     * 统一的物品加载方法
-     *
-     * @param tombstoneId 墓碑ID
-     * @return 物品数据列表
-     * @throws SQLException 数据库异常
-     */
-    @NotNull
-    public abstract List<TombstoneItemData> loadTombstoneItems(long tombstoneId) throws SQLException;
-
-    /**
-     * 墓碑物品数据记录类
-     * 统一的数据传输对象
-     */
-    public static record TombstoneItemData(
-        int originalSlotIndex,
-        ItemStack item
-    ) {}
-
-    /**
-     * 墓碑数据记录类
-     * 统一的数据传输对象
-     */
-    public static record TombstoneData(
-        long id,
-        UUID playerUuid,
-        String worldName,
-        int x,
-        int y,
-        int z,
-        long deathTime,
-        long protectionExpire,
-        int experience
-    ) {}
-
-    /**
-     * 移除墓碑物品
-     * 统一的物品移除方法
-     *
-     * @param tombstoneId 墓碑ID
-     * @param slotIndex 槽位索引
-     * @throws SQLException 数据库异常
-     */
-    public abstract void removeTombstoneItem(long tombstoneId, int slotIndex) throws SQLException;
-
-    /**
-     * 移除墓碑经验
-     * 统一的经验移除方法
-     *
-     * @param tombstoneId 墓碑ID
-     * @throws SQLException 数据库异常
-     */
-    public abstract void removeTombstoneExperience(long tombstoneId) throws SQLException;
-
-    /**
-     * 保存墓碑数据
-     * 统一的墓碑保存方法
-     *
-     * @param playerId 玩家UUID
-     * @param worldName 世界名称
-     * @param x X坐标
-     * @param y Y坐标
-     * @param z Z坐标
-     * @param deathTime 死亡时间
-     * @param protectionExpire 保护过期时间
-     * @param experience 经验值
-     * @param items 物品数组
-     * @return 墓碑ID
-     * @throws SQLException 数据库异常
-     */
-    public abstract long saveTombstone(@NotNull UUID playerId, @NotNull String worldName,
-                                     int x, int y, int z, long deathTime, long protectionExpire,
-                                     int experience, @NotNull ItemStack[] items) throws SQLException;
-
-    /**
-     * 删除墓碑数据
-     * 统一的墓碑删除方法
-     *
-     * @param tombstoneId 墓碑ID
-     * @throws SQLException 数据库异常
-     */
-    public abstract void deleteTombstone(long tombstoneId) throws SQLException;
-
-    /**
-     * 获取玩家的墓碑列表
-     * 统一的墓碑查询方法
-     *
-     * @param playerId 玩家UUID
-     * @return 墓碑数据列表
-     * @throws SQLException 数据库异常
-     */
-    @NotNull
-    public abstract List<TombstoneData> getPlayerTombstones(@NotNull UUID playerId) throws SQLException;
-
-    /**
-     * 获取所有墓碑数据
-     * 统一的全部墓碑查询方法
-     *
-     * @return 所有墓碑数据列表
-     * @throws SQLException 数据库异常
-     */
-    @NotNull
-    public abstract List<TombstoneData> getAllTombstones() throws SQLException;
-
-    /**
-     * 清理过期墓碑
-     * 统一的过期墓碑清理方法
-     *
-     * @param currentTime 当前时间戳
-     * @return 清理的墓碑数量
-     * @throws SQLException 数据库异常
-     */
-    public abstract int cleanupExpiredTombstones(long currentTime) throws SQLException;
     
     /**
      * 验证UUID格式

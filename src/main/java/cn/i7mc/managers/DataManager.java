@@ -25,16 +25,22 @@ public class DataManager extends AbstractDataManager {
     
     /**
      * 构造函数
-     * 
+     *
      * @param plugin 插件实例
      */
     public DataManager(@NotNull PlayerDeadManager plugin) {
         this.plugin = plugin;
-        String filename = plugin.getConfig().getString("database.sqlite.filename", "tombstones.db");
-        this.databaseFile = new File(plugin.getDataFolder(), filename);
+        this.databaseFile = new File(plugin.getDataFolder(), "tombstones.db");
+    }
 
-        // SQLite不需要表前缀，但为了统一接口保持空字符串
-        setTablePrefix("");
+    /**
+     * 获取数据库连接
+     * 统一的连接获取方法
+     *
+     * @return 数据库连接
+     */
+    public Connection getConnection() {
+        return connection;
     }
     
     /**
@@ -91,8 +97,8 @@ public class DataManager extends AbstractDataManager {
     @Override
     protected void createTables() throws SQLException {
         // 创建墓碑数据表
-        String createTombstonesTable = String.format("""
-            CREATE TABLE IF NOT EXISTS %s (
+        String createTombstonesTable = """
+            CREATE TABLE IF NOT EXISTS tombstones (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 player_uuid TEXT NOT NULL,
                 world_name TEXT NOT NULL,
@@ -101,25 +107,52 @@ public class DataManager extends AbstractDataManager {
                 z INTEGER NOT NULL,
                 death_time BIGINT NOT NULL,
                 protection_expire BIGINT NOT NULL,
+                despawn_time BIGINT NOT NULL,
                 experience INTEGER NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
-        """, getTableName("tombstones"));
+        """;
 
+        // 检查并添加despawn_time字段（用于数据库升级）
+        String addDespawnTimeColumn = """
+            ALTER TABLE tombstones ADD COLUMN despawn_time BIGINT DEFAULT 0
+        """;
+        
         // 创建物品数据表
-        String createItemsTable = String.format("""
-            CREATE TABLE IF NOT EXISTS %s (
+        String createItemsTable = """
+            CREATE TABLE IF NOT EXISTS tombstone_items (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 tombstone_id INTEGER NOT NULL,
                 slot_index INTEGER NOT NULL,
                 item_data BLOB NOT NULL,
-                FOREIGN KEY (tombstone_id) REFERENCES %s(id) ON DELETE CASCADE
+                FOREIGN KEY (tombstone_id) REFERENCES tombstones(id) ON DELETE CASCADE
             )
-        """, getTableName("tombstone_items"), getTableName("tombstones"));
-        
+        """;
+
+        // 创建玩家豁免记录表
+        String createExemptionsTable = """
+            CREATE TABLE IF NOT EXISTS player_exemptions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                player_uuid TEXT NOT NULL,
+                exemption_date TEXT NOT NULL,
+                used_count INTEGER NOT NULL DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(player_uuid, exemption_date)
+            )
+        """;
+
         try (Statement stmt = connection.createStatement()) {
             stmt.execute(createTombstonesTable);
             stmt.execute(createItemsTable);
+            stmt.execute(createExemptionsTable);
+
+            // 尝试添加despawn_time字段（如果不存在）
+            try {
+                stmt.execute(addDespawnTimeColumn);
+            } catch (SQLException e) {
+                // 字段可能已存在，忽略错误
+            }
+
             plugin.getLogger().info("数据库表创建完成");
         }
     }
@@ -135,24 +168,24 @@ public class DataManager extends AbstractDataManager {
      * @param z Z坐标
      * @param deathTime 死亡时间
      * @param protectionExpire 保护过期时间
+     * @param despawnTime 消失时间
      * @param experience 经验值
      * @param items 物品数组
      * @return 墓碑ID
      * @throws SQLException 数据库异常
      */
-    @Override
     public long saveTombstone(@NotNull UUID playerId, @NotNull String worldName,
                              int x, int y, int z, long deathTime, long protectionExpire,
-                             int experience, @NotNull ItemStack[] items) throws SQLException {
+                             long despawnTime, int experience, @NotNull ItemStack[] items) throws SQLException {
         final long[] tombstoneId = new long[1];
         
         executeTransaction(connection -> {
             // 插入墓碑基本信息
-            String insertTombstone = String.format("""
-                INSERT INTO %s (player_uuid, world_name, x, y, z, death_time, protection_expire, experience)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """, getTableName("tombstones"));
-            
+            String insertTombstone = """
+                INSERT INTO tombstones (player_uuid, world_name, x, y, z, death_time, protection_expire, despawn_time, experience)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """;
+
             try (PreparedStatement stmt = connection.prepareStatement(insertTombstone, Statement.RETURN_GENERATED_KEYS)) {
                 stmt.setString(1, playerId.toString());
                 stmt.setString(2, worldName);
@@ -161,7 +194,8 @@ public class DataManager extends AbstractDataManager {
                 stmt.setInt(5, z);
                 stmt.setLong(6, deathTime);
                 stmt.setLong(7, protectionExpire);
-                stmt.setInt(8, experience);
+                stmt.setLong(8, despawnTime);
+                stmt.setInt(9, experience);
                 
                 stmt.executeUpdate();
                 
@@ -192,9 +226,8 @@ public class DataManager extends AbstractDataManager {
      * @throws SQLException 数据库异常
      */
     private void saveItems(@NotNull Connection connection, long tombstoneId, @NotNull ItemStack[] items) throws SQLException {
-        String insertItem = String.format("INSERT INTO %s (tombstone_id, slot_index, item_data) VALUES (?, ?, ?)",
-                                         getTableName("tombstone_items"));
-
+        String insertItem = "INSERT INTO tombstone_items (tombstone_id, slot_index, item_data) VALUES (?, ?, ?)";
+        
         try (PreparedStatement stmt = connection.prepareStatement(insertItem)) {
             for (int i = 0; i < items.length; i++) {
                 ItemStack item = items[i];
@@ -221,8 +254,7 @@ public class DataManager extends AbstractDataManager {
     @NotNull
     public List<TombstoneItemData> loadTombstoneItems(long tombstoneId) throws SQLException {
         List<TombstoneItemData> items = new ArrayList<>();
-        String query = String.format("SELECT slot_index, item_data FROM %s WHERE tombstone_id = ? ORDER BY slot_index",
-                                    getTableName("tombstone_items"));
+        String query = "SELECT slot_index, item_data FROM tombstone_items WHERE tombstone_id = ? ORDER BY slot_index";
 
         try (PreparedStatement stmt = connection.prepareStatement(query)) {
             stmt.setLong(1, tombstoneId);
@@ -234,7 +266,7 @@ public class DataManager extends AbstractDataManager {
 
                     if (itemData != null) {
                         ItemStack item = deserializeItemStack(itemData);
-                        items.add(new AbstractDataManager.TombstoneItemData(slotIndex, item));
+                        items.add(new TombstoneItemData(slotIndex, item));
                     }
                 }
             }
@@ -243,7 +275,14 @@ public class DataManager extends AbstractDataManager {
         return items;
     }
 
-
+    /**
+     * 墓碑物品数据记录类
+     * 包含物品和其在PlayerInventory中的原始索引
+     */
+    public record TombstoneItemData(
+        int originalSlotIndex,
+        ItemStack item
+    ) {}
     
     /**
      * 移除墓碑中的单个物品
@@ -254,8 +293,7 @@ public class DataManager extends AbstractDataManager {
      * @throws SQLException 数据库异常
      */
     public void removeTombstoneItem(long tombstoneId, int slotIndex) throws SQLException {
-        String deleteItem = String.format("DELETE FROM %s WHERE tombstone_id = ? AND slot_index = ?",
-                                         getTableName("tombstone_items"));
+        String deleteItem = "DELETE FROM tombstone_items WHERE tombstone_id = ? AND slot_index = ?";
 
         try (PreparedStatement stmt = connection.prepareStatement(deleteItem)) {
             stmt.setLong(1, tombstoneId);
@@ -272,8 +310,7 @@ public class DataManager extends AbstractDataManager {
      * @throws SQLException 数据库异常
      */
     public void removeTombstoneExperience(long tombstoneId) throws SQLException {
-        String updateExperience = String.format("UPDATE %s SET experience = 0 WHERE id = ?",
-                                               getTableName("tombstones"));
+        String updateExperience = "UPDATE tombstones SET experience = 0 WHERE id = ?";
 
         try (PreparedStatement stmt = connection.prepareStatement(updateExperience)) {
             stmt.setLong(1, tombstoneId);
@@ -291,8 +328,7 @@ public class DataManager extends AbstractDataManager {
      */
     public boolean isTombstoneEmpty(long tombstoneId) throws SQLException {
         // 检查是否有物品
-        String checkItems = String.format("SELECT COUNT(*) FROM %s WHERE tombstone_id = ?",
-                                         getTableName("tombstone_items"));
+        String checkItems = "SELECT COUNT(*) FROM tombstone_items WHERE tombstone_id = ?";
         try (PreparedStatement stmt = connection.prepareStatement(checkItems)) {
             stmt.setLong(1, tombstoneId);
             try (ResultSet rs = stmt.executeQuery()) {
@@ -303,8 +339,7 @@ public class DataManager extends AbstractDataManager {
         }
 
         // 检查是否有经验
-        String checkExperience = String.format("SELECT experience FROM %s WHERE id = ?",
-                                              getTableName("tombstones"));
+        String checkExperience = "SELECT experience FROM tombstones WHERE id = ?";
         try (PreparedStatement stmt = connection.prepareStatement(checkExperience)) {
             stmt.setLong(1, tombstoneId);
             try (ResultSet rs = stmt.executeQuery()) {
@@ -324,20 +359,17 @@ public class DataManager extends AbstractDataManager {
      * @param tombstoneId 墓碑ID
      * @throws SQLException 数据库异常
      */
-    @Override
     public void deleteTombstone(long tombstoneId) throws SQLException {
         executeTransaction(connection -> {
             // 删除物品数据（外键约束会自动删除）
-            String deleteItems = String.format("DELETE FROM %s WHERE tombstone_id = ?",
-                                              getTableName("tombstone_items"));
+            String deleteItems = "DELETE FROM tombstone_items WHERE tombstone_id = ?";
             try (PreparedStatement stmt = connection.prepareStatement(deleteItems)) {
                 stmt.setLong(1, tombstoneId);
                 stmt.executeUpdate();
             }
 
             // 删除墓碑数据
-            String deleteTombstone = String.format("DELETE FROM %s WHERE id = ?",
-                                                  getTableName("tombstones"));
+            String deleteTombstone = "DELETE FROM tombstones WHERE id = ?";
             try (PreparedStatement stmt = connection.prepareStatement(deleteTombstone)) {
                 stmt.setLong(1, tombstoneId);
                 stmt.executeUpdate();
@@ -354,19 +386,17 @@ public class DataManager extends AbstractDataManager {
      * @throws SQLException 数据库异常
      */
     public int cleanupExpiredTombstones(long currentTime) throws SQLException {
-        String query = String.format("""
-            SELECT id, player_uuid, world_name, x, y, z, death_time, protection_expire, experience
-            FROM %s
-            WHERE death_time + ? < ?
-        """, getTableName("tombstones"));
+        String query = """
+            SELECT id, player_uuid, world_name, x, y, z, death_time, protection_expire, despawn_time, experience
+            FROM tombstones
+            WHERE despawn_time < ?
+        """;
 
         List<TombstoneData> expiredTombstones = new ArrayList<>();
 
         try (PreparedStatement stmt = connection.prepareStatement(query)) {
-            // 计算24小时的毫秒数
-            long despawnTime = plugin.getConfig().getLong("tombstone.despawn-time", 24) * 60 * 60 * 1000;
-            stmt.setLong(1, despawnTime);
-            stmt.setLong(2, currentTime);
+            // 使用当前时间检查despawn_time字段
+            stmt.setLong(1, currentTime);
 
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
@@ -379,6 +409,7 @@ public class DataManager extends AbstractDataManager {
                         rs.getInt("z"),
                         rs.getLong("death_time"),
                         rs.getLong("protection_expire"),
+                        rs.getLong("despawn_time"),
                         rs.getInt("experience")
                     ));
                 }
@@ -402,26 +433,25 @@ public class DataManager extends AbstractDataManager {
     /**
      * 获取玩家的墓碑列表
      * 统一的墓碑查询方法
-     *
+     * 
      * @param playerId 玩家UUID
      * @return 墓碑数据列表
      * @throws SQLException 数据库异常
      */
     @NotNull
-    @Override
-    public List<AbstractDataManager.TombstoneData> getPlayerTombstones(@NotNull UUID playerId) throws SQLException {
-        List<AbstractDataManager.TombstoneData> tombstones = new ArrayList<>();
-        String query = String.format("""
-            SELECT id, world_name, x, y, z, death_time, protection_expire, experience
-            FROM %s WHERE player_uuid = ? ORDER BY death_time DESC
-        """, getTableName("tombstones"));
+    public List<TombstoneData> getPlayerTombstones(@NotNull UUID playerId) throws SQLException {
+        List<TombstoneData> tombstones = new ArrayList<>();
+        String query = """
+            SELECT id, world_name, x, y, z, death_time, protection_expire, despawn_time, experience
+            FROM tombstones WHERE player_uuid = ? ORDER BY death_time DESC
+        """;
         
         try (PreparedStatement stmt = connection.prepareStatement(query)) {
             stmt.setString(1, playerId.toString());
             
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
-                    AbstractDataManager.TombstoneData data = new AbstractDataManager.TombstoneData(
+                    TombstoneData data = new TombstoneData(
                         rs.getLong("id"),
                         playerId,
                         rs.getString("world_name"),
@@ -430,6 +460,7 @@ public class DataManager extends AbstractDataManager {
                         rs.getInt("z"),
                         rs.getLong("death_time"),
                         rs.getLong("protection_expire"),
+                        rs.getLong("despawn_time"),
                         rs.getInt("experience")
                     );
                     tombstones.add(data);
@@ -448,19 +479,18 @@ public class DataManager extends AbstractDataManager {
      * @throws SQLException 数据库异常
      */
     @NotNull
-    @Override
-    public List<AbstractDataManager.TombstoneData> getAllTombstones() throws SQLException {
-        List<AbstractDataManager.TombstoneData> tombstones = new ArrayList<>();
-        String query = String.format("""
-            SELECT id, player_uuid, world_name, x, y, z, death_time, protection_expire, experience
-            FROM %s ORDER BY death_time DESC
-        """, getTableName("tombstones"));
+    public List<TombstoneData> getAllTombstones() throws SQLException {
+        List<TombstoneData> tombstones = new ArrayList<>();
+        String query = """
+            SELECT id, player_uuid, world_name, x, y, z, death_time, protection_expire, despawn_time, experience
+            FROM tombstones ORDER BY death_time DESC
+        """;
 
         try (PreparedStatement stmt = connection.prepareStatement(query);
              ResultSet rs = stmt.executeQuery()) {
 
             while (rs.next()) {
-                AbstractDataManager.TombstoneData data = new AbstractDataManager.TombstoneData(
+                TombstoneData data = new TombstoneData(
                     rs.getLong("id"),
                     UUID.fromString(rs.getString("player_uuid")),
                     rs.getString("world_name"),
@@ -469,6 +499,7 @@ public class DataManager extends AbstractDataManager {
                     rs.getInt("z"),
                     rs.getLong("death_time"),
                     rs.getLong("protection_expire"),
+                    rs.getLong("despawn_time"),
                     rs.getInt("experience")
                 );
                 tombstones.add(data);
@@ -478,4 +509,20 @@ public class DataManager extends AbstractDataManager {
         return tombstones;
     }
 
+    /**
+     * 墓碑数据记录类
+     * 统一的数据传输对象
+     */
+    public record TombstoneData(
+        long id,
+        UUID playerUuid,
+        String worldName,
+        int x,
+        int y,
+        int z,
+        long deathTime,
+        long protectionExpire,
+        long despawnTime,
+        int experience
+    ) {}
 }

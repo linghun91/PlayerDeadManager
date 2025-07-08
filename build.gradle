@@ -2,8 +2,48 @@ plugins {
     id 'java'
 }
 
+// 版本管理
+def versionFile = file('version.properties')
+def currentVersion = '1.1.0.1'
+
+// 读取当前版本
+if (versionFile.exists()) {
+    def props = new Properties()
+    versionFile.withInputStream { props.load(it) }
+    currentVersion = props.getProperty('version', '1.1.0.1')
+}
+
+// 自动迭代版本号
+def getNextVersion(String currentVer) {
+    def versionParts = currentVer.split('\\.')
+    if (versionParts.length >= 4) {
+        def major = versionParts[0] as int
+        def minor = versionParts[1] as int
+        def patch = versionParts[2] as int
+        def build = versionParts[3] as int
+
+        // 迭代版本号：第四位+1
+        build++
+
+        return "${major}.${minor}.${patch}.${build}"
+    }
+    return currentVer
+}
+
+// 获取新版本号并立即更新
+def newVersion = getNextVersion(currentVersion)
+
+// 更新 version.properties
+def props = new Properties()
+props.setProperty('version', newVersion)
+props.setProperty('lastBuild', new Date().toString())
+props.setProperty('buildCount', String.valueOf(newVersion.split('\\.')[3]))
+versionFile.withOutputStream { props.store(it, 'Auto-incremented version for PlayerDeadManager') }
+
+println "PlayerDeadManager版本已从 ${currentVersion} 更新到 ${newVersion}"
+
 group = 'cn.i7mc'
-version = '1.0.0'
+version = newVersion
 description = 'PlayerDeadManager'
 
 java {
@@ -16,11 +56,15 @@ repositories {
         name = 'papermc-repo'
         url = 'https://repo.papermc.io/repository/maven-public/'
     }
+    maven {
+        name = 'jitpack'
+        url = 'https://jitpack.io'
+    }
 }
 
 dependencies {
     compileOnly 'io.papermc.paper:paper-api:1.20.1-R0.1-SNAPSHOT'
-    compileOnly 'mysql:mysql-connector-java:8.0.33'
+    compileOnly 'com.github.MilkBowl:VaultAPI:1.7'
 }
 
 tasks {

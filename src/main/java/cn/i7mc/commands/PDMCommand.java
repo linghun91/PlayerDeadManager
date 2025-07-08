@@ -95,6 +95,10 @@ public class PDMCommand implements CommandExecutor, TabCompleter {
                 handleInfoCommand(sender, subArgs);
                 yield true;
             }
+            case "cleanup", "clean" -> {
+                handleCleanupCommand(sender, subArgs);
+                yield true;
+            }
             default -> {
                 sendUnknownCommandMessage(sender, subCommand);
                 yield true;
@@ -294,7 +298,7 @@ public class PDMCommand implements CommandExecutor, TabCompleter {
     /**
      * 处理信息命令
      * 统一的信息命令处理方法
-     * 
+     *
      * @param sender 命令发送者
      * @param args 命令参数
      */
@@ -306,6 +310,62 @@ public class PDMCommand implements CommandExecutor, TabCompleter {
         placeholders.put("version", plugin.getDescription().getVersion());
         placeholders.put("author", plugin.getDescription().getAuthors().toString());
         messageManager.sendMessage(sender, "commands.info", placeholders);
+    }
+
+    /**
+     * 处理清理命令
+     * 统一的清理命令处理方法
+     *
+     * @param sender 命令发送者
+     * @param args 命令参数
+     */
+    private void handleCleanupCommand(@NotNull CommandSender sender, @NotNull String[] args) {
+        // 检查权限
+        if (!sender.hasPermission("playerdeadmanager.admin.cleanup")) {
+            Map<String, String> placeholders = messageManager.createPlaceholders();
+            if (sender instanceof Player player) {
+                messageManager.addPlayerPlaceholders(placeholders, player);
+            }
+            messageManager.sendMessage(sender, "permission.no-cleanup", placeholders);
+            return;
+        }
+
+        // 发送开始清理消息
+        Map<String, String> placeholders = messageManager.createPlaceholders();
+        if (sender instanceof Player player) {
+            messageManager.addPlayerPlaceholders(placeholders, player);
+        }
+        messageManager.sendMessage(sender, "commands.cleanup.start", placeholders);
+
+        // 在主线程执行清理操作，避免异步访问方块状态错误
+        plugin.getServer().getScheduler().runTask(plugin, () -> {
+            try {
+                // 获取EntityCleanupManager
+                cn.i7mc.utils.EntityCleanupManager entityCleanupManager =
+                    tombstoneManager.getEntityCleanupManager();
+
+                // 执行清理
+                entityCleanupManager.cleanupAllTombstoneEntities();
+
+                // 发送完成消息
+                Map<String, String> completePlaceholders = messageManager.createPlaceholders();
+                if (sender instanceof Player player) {
+                    messageManager.addPlayerPlaceholders(completePlaceholders, player);
+                }
+                messageManager.sendMessage(sender, "commands.cleanup.complete", completePlaceholders);
+
+            } catch (Exception e) {
+                plugin.getLogger().severe("清理残留实体时发生错误: " + e.getMessage());
+                e.printStackTrace();
+
+                // 发送错误消息
+                Map<String, String> errorPlaceholders = messageManager.createPlaceholders();
+                if (sender instanceof Player player) {
+                    messageManager.addPlayerPlaceholders(errorPlaceholders, player);
+                }
+                messageManager.sendMessage(sender, "commands.cleanup.error", errorPlaceholders);
+            }
+        });
     }
     
     /**
@@ -325,6 +385,7 @@ public class PDMCommand implements CommandExecutor, TabCompleter {
         messageManager.sendMessage(sender, "commands.help.gui", placeholders);
         messageManager.sendMessage(sender, "commands.help.teleport", placeholders);
         messageManager.sendMessage(sender, "commands.help.reload", placeholders);
+        messageManager.sendMessage(sender, "commands.help.cleanup", placeholders);
         messageManager.sendMessage(sender, "commands.help.info", placeholders);
     }
     
@@ -398,11 +459,12 @@ public class PDMCommand implements CommandExecutor, TabCompleter {
         
         if (args.length == 1) {
             // 第一级子命令补全
-            List<String> subCommands = Arrays.asList("help", "reload", "list", "gui", "teleport", "info");
+            List<String> subCommands = Arrays.asList("help", "reload", "list", "gui", "teleport", "info", "cleanup");
             String input = args[0].toLowerCase();
-            
+
             for (String subCommand : subCommands) {
-                if (subCommand.startsWith(input) && sender.hasPermission("playerdeadmanager." + subCommand)) {
+                String permission = subCommand.equals("cleanup") ? "playerdeadmanager.admin.cleanup" : "playerdeadmanager." + subCommand;
+                if (subCommand.startsWith(input) && sender.hasPermission(permission)) {
                     completions.add(subCommand);
                 }
             }

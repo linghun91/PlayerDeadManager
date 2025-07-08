@@ -13,6 +13,7 @@ import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Entity;
 import org.bukkit.persistence.PersistentDataType;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -82,32 +83,48 @@ public class EntityCleanupManager {
     /**
      * 清理指定世界中的墓碑方块
      * 统一的方块清理方法
-     * 
+     *
      * @param world 世界
      * @return 清理的方块数量
      */
     private int cleanupTombstoneBlocks(@NotNull World world) {
         int cleanedCount = 0;
         List<Block> blocksToClean = new ArrayList<>();
-        
+
         // 遍历世界中的所有加载区块
         for (org.bukkit.Chunk chunk : world.getLoadedChunks()) {
-            for (org.bukkit.block.BlockState tileEntity : chunk.getTileEntities()) {
-                if (tileEntity instanceof TileState tileState) {
-                    // 检查是否有墓碑标记
-                    if (tileState.getPersistentDataContainer().has(tombstoneKey, PersistentDataType.LONG)) {
-                        blocksToClean.add(tileState.getBlock());
+            try {
+                // 安全获取区块的方块实体，避免异步访问错误
+                org.bukkit.block.BlockState[] tileEntities = chunk.getTileEntities();
+                for (org.bukkit.block.BlockState tileEntity : tileEntities) {
+                    if (tileEntity instanceof TileState tileState) {
+                        try {
+                            // 检查是否有墓碑标记
+                            if (tileState.getPersistentDataContainer().has(tombstoneKey, PersistentDataType.LONG)) {
+                                blocksToClean.add(tileState.getBlock());
+                            }
+                        } catch (Exception e) {
+                            // 忽略单个方块状态访问错误，继续处理其他方块
+                            plugin.getLogger().warning("访问方块状态时发生错误，跳过该方块: " + e.getMessage());
+                        }
                     }
                 }
+            } catch (Exception e) {
+                // 忽略区块访问错误，继续处理其他区块
+                plugin.getLogger().warning("访问区块 " + chunk.getX() + "," + chunk.getZ() + " 时发生错误: " + e.getMessage());
             }
         }
-        
+
         // 清理找到的方块
         for (Block block : blocksToClean) {
-            block.setType(Material.AIR);
-            cleanedCount++;
+            try {
+                block.setType(Material.AIR);
+                cleanedCount++;
+            } catch (Exception e) {
+                plugin.getLogger().warning("清理方块时发生错误: " + e.getMessage());
+            }
         }
-        
+
         return cleanedCount;
     }
     
@@ -144,17 +161,22 @@ public class EntityCleanupManager {
     /**
      * 检查方块是否为墓碑方块
      * 统一的墓碑方块检查方法
-     * 
+     *
      * @param block 方块
      * @return 是否为墓碑方块
      */
     public boolean isTombstoneBlock(@NotNull Block block) {
-        org.bukkit.block.BlockState state = block.getState();
-        
-        if (state instanceof TileState tileState) {
-            return tileState.getPersistentDataContainer().has(tombstoneKey, PersistentDataType.LONG);
+        try {
+            org.bukkit.block.BlockState state = block.getState();
+
+            if (state instanceof TileState tileState) {
+                return tileState.getPersistentDataContainer().has(tombstoneKey, PersistentDataType.LONG);
+            }
+        } catch (Exception e) {
+            // 忽略方块状态访问错误，返回false
+            plugin.getLogger().warning("检查墓碑方块时发生错误: " + e.getMessage());
         }
-        
+
         return false;
     }
     
@@ -176,17 +198,22 @@ public class EntityCleanupManager {
     /**
      * 获取墓碑方块的ID
      * 统一的墓碑ID获取方法
-     * 
+     *
      * @param block 方块
      * @return 墓碑ID，不存在返回null
      */
     public Long getTombstoneId(@NotNull Block block) {
-        org.bukkit.block.BlockState state = block.getState();
-        
-        if (state instanceof TileState tileState) {
-            return tileState.getPersistentDataContainer().get(tombstoneKey, PersistentDataType.LONG);
+        try {
+            org.bukkit.block.BlockState state = block.getState();
+
+            if (state instanceof TileState tileState) {
+                return tileState.getPersistentDataContainer().get(tombstoneKey, PersistentDataType.LONG);
+            }
+        } catch (Exception e) {
+            // 忽略方块状态访问错误，返回null
+            plugin.getLogger().warning("获取墓碑ID时发生错误: " + e.getMessage());
         }
-        
+
         return null;
     }
     
@@ -214,26 +241,80 @@ public class EntityCleanupManager {
     /**
      * 清理指定位置的墓碑实体
      * 统一的位置清理方法
-     * 
+     *
      * @param location 位置
      */
     public void cleanupTombstoneEntitiesAt(@NotNull Location location) {
-        // 清理方块
-        Block block = location.getBlock();
-        if (isTombstoneBlock(block)) {
-            block.setType(Material.AIR);
+        try {
+            // 清理方块
+            Block block = location.getBlock();
+            if (isTombstoneBlock(block)) {
+                block.setType(Material.AIR);
+            }
+        } catch (Exception e) {
+            plugin.getLogger().warning("清理位置 " + location + " 的墓碑方块时发生错误: " + e.getMessage());
         }
-        
-        // 清理附近的全息图实体
-        World world = location.getWorld();
+
+        try {
+            // 清理附近的全息图实体
+            World world = location.getWorld();
+            if (world != null) {
+                double radius = 5.0; // 搜索半径
+                for (Entity entity : world.getNearbyEntities(location, radius, radius, radius)) {
+                    if (isPDMHologram(entity)) {
+                        entity.remove();
+                    }
+                }
+            }
+        } catch (Exception e) {
+            plugin.getLogger().warning("清理位置 " + location + " 的全息图实体时发生错误: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 清理指定墓碑ID的全息图实体
+     * 统一的墓碑ID清理方法
+     *
+     * @param tombstoneId 墓碑ID
+     * @param world 世界（可选，为null时搜索所有世界）
+     * @return 清理的全息图数量
+     */
+    public int cleanupHologramsByTombstoneId(long tombstoneId, @Nullable World world) {
+        int cleanedCount = 0;
+        List<World> worldsToSearch = new ArrayList<>();
+
         if (world != null) {
-            double radius = 5.0; // 搜索半径
-            for (Entity entity : world.getNearbyEntities(location, radius, radius, radius)) {
-                if (isPDMHologram(entity)) {
-                    entity.remove();
+            worldsToSearch.add(world);
+        } else {
+            worldsToSearch.addAll(plugin.getServer().getWorlds());
+        }
+
+        for (World searchWorld : worldsToSearch) {
+            List<ArmorStand> armorStandsToRemove = new ArrayList<>();
+
+            // 遍历世界中的所有实体
+            for (Entity entity : searchWorld.getEntities()) {
+                if (entity instanceof ArmorStand armorStand) {
+                    // 检查是否有PDM全息图标记且墓碑ID匹配
+                    Long hologramTombstoneId = getHologramTombstoneId(armorStand);
+                    if (hologramTombstoneId != null && hologramTombstoneId == tombstoneId) {
+                        armorStandsToRemove.add(armorStand);
+                    }
+                }
+            }
+
+            // 移除找到的盔甲架
+            for (ArmorStand armorStand : armorStandsToRemove) {
+                try {
+                    armorStand.remove();
+                    cleanedCount++;
+                } catch (Exception e) {
+                    plugin.getLogger().warning("移除墓碑ID " + tombstoneId + " 的全息图时发生错误: " + e.getMessage());
                 }
             }
         }
+
+        return cleanedCount;
     }
     
     /**
