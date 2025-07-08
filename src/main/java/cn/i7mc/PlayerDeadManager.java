@@ -7,9 +7,13 @@ import cn.i7mc.listeners.PlayerInteractListener;
 import cn.i7mc.listeners.TombstoneProtectionListener;
 import cn.i7mc.managers.ConfigManager;
 import cn.i7mc.managers.DataManager;
+import cn.i7mc.managers.EconomyManager;
 import cn.i7mc.managers.GUIManager;
 import cn.i7mc.managers.MessageManager;
 import cn.i7mc.managers.TombstoneManager;
+import cn.i7mc.managers.VipExemptionManager;
+import cn.i7mc.managers.VipTimeManager;
+import cn.i7mc.managers.WorldConfigManager;
 import cn.i7mc.metrics.Metrics;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -28,6 +32,10 @@ public class PlayerDeadManager extends JavaPlugin {
     private DataManager dataManager;
     private TombstoneManager tombstoneManager;
     private GUIManager guiManager;
+    private EconomyManager economyManager;
+    private VipTimeManager vipTimeManager;
+    private VipExemptionManager vipExemptionManager;
+    private WorldConfigManager worldConfigManager;
 
     @Override
     public void onEnable() {
@@ -81,9 +89,24 @@ public class PlayerDeadManager extends JavaPlugin {
         // 初始化GUI管理器
         guiManager = new GUIManager();
 
+        // 初始化经济管理器
+        economyManager = new EconomyManager(this, configManager);
+
+        // 初始化VIP时间管理器
+        vipTimeManager = new VipTimeManager(this, configManager);
+
+        // 初始化VIP豁免管理器
+        vipExemptionManager = new VipExemptionManager(this);
+
+        // 初始化世界配置管理器
+        worldConfigManager = new WorldConfigManager(this, configManager);
+
         // 初始化墓碑管理器
         tombstoneManager = new TombstoneManager(this, configManager, messageManager, dataManager);
         tombstoneManager.initialize();
+
+        // 启动VIP豁免清理任务
+        startVipExemptionCleanupTask();
 
         getLogger().info("管理器初始化完成");
     }
@@ -278,5 +301,60 @@ public class PlayerDeadManager extends JavaPlugin {
             }
             return "Unknown";
         }));
+    }
+
+
+
+    /**
+     * 获取经济管理器
+     *
+     * @return 经济管理器实例
+     */
+    public EconomyManager getEconomyManager() {
+        return economyManager;
+    }
+
+    /**
+     * 获取VIP时间管理器
+     *
+     * @return VIP时间管理器实例
+     */
+    public VipTimeManager getVipTimeManager() {
+        return vipTimeManager;
+    }
+
+    /**
+     * 获取VIP豁免管理器
+     *
+     * @return VIP豁免管理器实例
+     */
+    public VipExemptionManager getVipExemptionManager() {
+        return vipExemptionManager;
+    }
+
+    /**
+     * 获取世界配置管理器
+     *
+     * @return 世界配置管理器实例
+     */
+    public WorldConfigManager getWorldConfigManager() {
+        return worldConfigManager;
+    }
+
+    /**
+     * 启动VIP豁免清理任务
+     * 统一的清理任务启动方法
+     */
+    private void startVipExemptionCleanupTask() {
+        if (vipExemptionManager != null && vipExemptionManager.isExemptionEnabled()) {
+            // 每天清理一次过期的豁免记录 (24小时 = 24 * 60 * 60 * 20 ticks)
+            long cleanupInterval = 24 * 60 * 60 * 20L;
+
+            getServer().getScheduler().runTaskTimerAsynchronously(this, () -> {
+                vipExemptionManager.cleanupExpiredExemptions();
+            }, cleanupInterval, cleanupInterval);
+
+            getLogger().info("VIP豁免清理任务已启动");
+        }
     }
 }

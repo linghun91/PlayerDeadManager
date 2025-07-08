@@ -100,7 +100,7 @@ public class HologramUtil {
     /**
      * 移除墓碑全息图
      * 统一的全息图移除方法
-     * 
+     *
      * @param location 墓碑位置
      */
     public void removeHologram(@NotNull Location location) {
@@ -108,8 +108,33 @@ public class HologramUtil {
         if (armorStands != null) {
             for (ArmorStand armorStand : armorStands) {
                 if (armorStand != null && !armorStand.isDead()) {
-                    armorStand.remove();
+                    try {
+                        armorStand.remove();
+                    } catch (Exception e) {
+                        plugin.getLogger().warning("移除全息图盔甲架时发生错误: " + e.getMessage());
+                    }
                 }
+            }
+        }
+
+        // 额外安全检查：如果位置仍有残留的全息图实体，尝试清理
+        if (location.getWorld() != null) {
+            try {
+                double radius = 2.0; // 小范围搜索
+                for (org.bukkit.entity.Entity entity : location.getWorld().getNearbyEntities(location, radius, radius, radius)) {
+                    if (entity instanceof org.bukkit.entity.ArmorStand armorStand) {
+                        // 检查是否有PDM全息图标记
+                        if (armorStand.getPersistentDataContainer().has(hologramKey, org.bukkit.persistence.PersistentDataType.STRING)) {
+                            try {
+                                armorStand.remove();
+                            } catch (Exception e) {
+                                plugin.getLogger().warning("清理残留全息图实体时发生错误: " + e.getMessage());
+                            }
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                plugin.getLogger().warning("搜索残留全息图实体时发生错误: " + e.getMessage());
             }
         }
     }

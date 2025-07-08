@@ -33,6 +33,12 @@ tombstone:
   # 自动清理间隔 (小时)
   # Auto cleanup interval (hours)
   cleanup-interval: 1
+  # 是否只在PVP死亡时创建墓碑
+  # Only create tombstone on PVP death
+  pvp-only: true
+  # 头颅完全保护 (永远不被破坏，只有过期或取完物品才移除)
+  # Complete skull protection (never destroyed, only removed when expired or items taken)
+  skull-protection: true
 
 # 保存图腾设置
 # Save Totem Settings
@@ -134,6 +140,16 @@ experience:
   # Keep experience level
   keep-level: false
 
+# 经济设置
+# Economy Settings
+economy:
+  # 是否启用死亡扣费保险机制
+  # Enable death cost insurance mechanism
+  enabled: true
+  # 死亡扣费金额 (扣费成功=保住物品不掉落，扣费失败=正常掉落+生成墓碑)
+  # Death cost amount (success=keep items, fail=normal drop+create tombstone)
+  cost: 1.0
+
 # 数据库设置
 # Database Settings
 database:
@@ -158,6 +174,19 @@ worlds:
   disabled-worlds:
     - "world_nether"
     - "world_the_end"
+  # 世界特定配置
+  # World-specific configurations
+  world-configs:
+    # 示例：为特定世界设置不同的配置
+    # Example: Different settings for specific worlds
+    "world":
+      pvp-only: true
+      economy-enabled: true
+      skull-protection: true
+    "world_pvp":
+      pvp-only: false
+      economy-enabled: false
+      skull-protection: false
 
 # 权限设置
 # Permission Settings
@@ -171,6 +200,50 @@ permissions:
   # 管理员权限节点
   # Admin permission node
   admin: "playerdeadmanager.admin"
+  # 功能特定权限
+  # Feature-specific permissions
+  features:
+    # PVP死亡墓碑权限
+    # PVP death tombstone permission
+    pvp-tombstone: "playerdeadmanager.pvp"
+    # 经济系统权限
+    # Economy system permission
+    economy: "playerdeadmanager.economy"
+    # 头颅保护权限
+    # Skull protection permission
+    skull-protection: "playerdeadmanager.protection"
+    # 绕过世界限制权限
+    # Bypass world restrictions permission
+    bypass-world: "playerdeadmanager.bypass.world"
+
+# VIP权限时间设置
+# VIP Permission Time Settings
+vip-times:
+  # 是否启用VIP权限时间
+  # Enable VIP permission time
+  enabled: true
+  # VIP权限配置 (权限节点: {保护时间(分钟), 消失时间(小时)})
+  # VIP permission configuration (permission: {protection-time(minutes), despawn-time(hours)})
+  permissions:
+    "playerdeadmanager.vip1":
+      protection-time: 120
+      despawn-time: 48
+    "playerdeadmanager.vip2":
+      protection-time: 180
+      despawn-time: 72
+    "playerdeadmanager.vip3":
+      protection-time: 240
+      despawn-time: 96
+
+# VIP豁免设置
+# VIP Exemption Settings
+vip-exemption:
+  # 是否启用VIP豁免功能
+  # Enable VIP exemption feature
+  enabled: true
+  # 豁免记录清理天数 (删除多少天前的记录)
+  # Days to keep exemption records (delete records older than this)
+  cleanup-days: 7
 
 # 兼容性设置
 # Compatibility Settings

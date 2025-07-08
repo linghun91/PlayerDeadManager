@@ -12,15 +12,20 @@ import java.util.UUID;
 /**
  * 玩家墓碑实现类 - 继承AbstractTombstone
  * 遵循统一方法原则，避免重复造轮子
- * 
+ * 整体实例管理：头颅+全息图+粒子效果作为统一整体
+ *
  * @author saga
  * @version 1.0.0
  */
 public class PlayerTombstone extends AbstractTombstone {
 
     private final long tombstoneId;
+    private final long despawnTime;
     private boolean isRemoved;
     private int currentExperience; // 可变的经验值，用于覆盖父类的final字段
+    private boolean hasHologram; // 是否有全息图
+    private boolean hasParticles; // 是否有粒子效果
+    private boolean hasSkull; // 是否有头颅方块
     
     /**
      * 构造函数
@@ -29,15 +34,21 @@ public class PlayerTombstone extends AbstractTombstone {
      * @param location 墓碑位置
      * @param deathTime 死亡时间戳
      * @param protectionExpire 保护过期时间戳
+     * @param despawnTime 消失时间戳
      * @param experience 存储的经验值
      * @param tombstoneId 数据库中的墓碑ID
      */
     public PlayerTombstone(@NotNull UUID playerId, @NotNull Location location,
-                          long deathTime, long protectionExpire, int experience, long tombstoneId) {
+                          long deathTime, long protectionExpire, long despawnTime,
+                          int experience, long tombstoneId) {
         super(playerId, location, deathTime, protectionExpire, experience);
         this.tombstoneId = tombstoneId;
+        this.despawnTime = despawnTime;
         this.isRemoved = false;
         this.currentExperience = experience; // 初始化可变经验值
+        this.hasHologram = false;
+        this.hasParticles = false;
+        this.hasSkull = false;
     }
     
     /**
@@ -49,12 +60,13 @@ public class PlayerTombstone extends AbstractTombstone {
         if (isRemoved) {
             return;
         }
-        
+
         Block block = location.getBlock();
-        
+
         // 设置为箱子方块（默认墓碑类型）
         block.setType(Material.CHEST);
-        
+        this.hasSkull = true;
+
         // 注意：PersistentDataContainer的设置在TombstoneManager中处理
         // 这里只负责方块的基本设置
     }
@@ -68,9 +80,10 @@ public class PlayerTombstone extends AbstractTombstone {
         if (isRemoved) {
             return;
         }
-        
+
         Block block = location.getBlock();
         block.setType(Material.AIR);
+        this.hasSkull = false;
         isRemoved = true;
     }
     
@@ -105,11 +118,31 @@ public class PlayerTombstone extends AbstractTombstone {
     
     /**
      * 获取数据库中的墓碑ID
-     * 
+     *
      * @return 墓碑ID
      */
     public long getTombstoneId() {
         return tombstoneId;
+    }
+
+    /**
+     * 获取消失时间戳
+     *
+     * @return 消失时间戳
+     */
+    public long getDespawnTime() {
+        return despawnTime;
+    }
+
+    /**
+     * 检查墓碑是否应该被清理（重写父类方法）
+     * 使用数据库中的despawn_time字段进行精确判断
+     *
+     * @return 是否应该清理
+     */
+    @Override
+    public boolean shouldDespawn() {
+        return System.currentTimeMillis() > despawnTime;
     }
     
     /**
@@ -119,6 +152,86 @@ public class PlayerTombstone extends AbstractTombstone {
      */
     public boolean isRemoved() {
         return isRemoved;
+    }
+
+    /**
+     * 设置全息图状态
+     * 统一的全息图状态管理方法
+     *
+     * @param hasHologram 是否有全息图
+     */
+    public void setHasHologram(boolean hasHologram) {
+        this.hasHologram = hasHologram;
+    }
+
+    /**
+     * 设置粒子效果状态
+     * 统一的粒子效果状态管理方法
+     *
+     * @param hasParticles 是否有粒子效果
+     */
+    public void setHasParticles(boolean hasParticles) {
+        this.hasParticles = hasParticles;
+    }
+
+    /**
+     * 检查是否有全息图
+     *
+     * @return 是否有全息图
+     */
+    public boolean hasHologram() {
+        return hasHologram;
+    }
+
+    /**
+     * 检查是否有粒子效果
+     *
+     * @return 是否有粒子效果
+     */
+    public boolean hasParticles() {
+        return hasParticles;
+    }
+
+    /**
+     * 检查是否有头颅方块
+     *
+     * @return 是否有头颅方块
+     */
+    public boolean hasSkull() {
+        return hasSkull;
+    }
+
+    /**
+     * 检查墓碑整体实例是否完整
+     * 统一的完整性检查方法
+     *
+     * @return 是否完整（所有组件都存在）
+     */
+    public boolean isComplete() {
+        return hasSkull && !isRemoved;
+    }
+
+    /**
+     * 检查墓碑是否应该被清理（基于despawn-time）
+     * 统一的清理检查方法
+     *
+     * @param despawnTimeHours 配置的despawn-time（小时）
+     * @return 是否应该清理
+     */
+    public boolean shouldDespawn(long despawnTimeHours) {
+        long despawnTimeMillis = despawnTimeHours * 60 * 60 * 1000;
+        return (System.currentTimeMillis() - deathTime) > despawnTimeMillis;
+    }
+
+    /**
+     * 标记整体实例为已移除
+     * 统一的移除标记方法
+     */
+    public void markAsRemoved() {
+        this.isRemoved = true;
+        this.hasSkull = false;
+        this.hasHologram = false;
+        this.hasParticles = false;
     }
 
     /**

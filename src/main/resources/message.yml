@@ -21,6 +21,10 @@ tombstone:
   max-limit: "&c你已达到最大墓碑数量限制! (&f{current}/{max}&c)"
   protection-expired: "&e你的墓碑保护已过期，其他玩家现在可以拾取!"
   despawned: "&c你在 &f{location} &c的墓碑已消失!"
+  pvp-only: "&7只有PVP死亡才会创建墓碑"
+  non-pvp-death: "&7你不是被玩家杀死的，不会创建墓碑"
+  skull-protected: "&c墓碑头颅受到完全保护，无法被任何方式破坏!"
+  admin-use-command: "&e管理员请使用指令来管理墓碑 ID: &f{tombstone_id}"
   
 # 物品拾取消息
 pickup:
@@ -41,6 +45,28 @@ totem:
   used: "&a保存图腾已激活! 你的物品和经验已被保护!"
   not-found: "&c你没有保存图腾!"
   given: "&a你获得了 &f{amount} &a个保存图腾!"
+
+# 经济系统消息
+economy:
+  payment-success: "&a死亡保险生效! 扣除 &f{cost} &a金币，你的物品和经验已被保护! 余额: &f{balance}"
+  insufficient-funds: "&c余额不足! 需要 &f{cost} &c金币，当前余额: &f{balance} &c，物品将正常掉落并生成墓碑"
+  not-enabled: "&c经济系统未启用"
+  vault-not-found: "&c未找到Vault插件，经济功能不可用"
+
+# VIP权限消息
+vip:
+  level-display: "&6VIP等级: &f{level}"
+  protection-time: "&a你的VIP权限为墓碑提供了 &f{time} &a的保护时间"
+  despawn-time: "&a你的VIP权限让墓碑在 &f{time} &a后消失"
+  not-vip: "&7你是普通玩家，使用默认时间设置"
+
+# VIP豁免消息
+vip-exemption:
+  used: "&a&l[VIP豁免] &a死亡豁免生效! 你的物品和经验已被保护! 今日剩余豁免次数: &f{remaining}&a/&f{max}"
+  no-permission: "&c你没有VIP豁免权限"
+  no-remaining: "&c你今日的VIP豁免次数已用完! 已使用: &f{used}&c/&f{max}"
+  status: "&6VIP豁免状态: &f{used}&6/&f{max} &6(剩余: &f{remaining}&6)"
+  disabled: "&7VIP豁免功能已禁用"
 
 # GUI消息
 gui:
@@ -148,6 +174,7 @@ permission:
   no-teleport: "&c你没有权限传送到墓碑!"
   no-list: "&c你没有权限查看墓碑列表!"
   no-reload: "&c你没有权限重载插件配置!"
+  no-cleanup: "&c你没有权限清理残留实体!"
   no-gui-specific: "&c你没有权限使用 {gui_type} GUI!"
 
 # 传送消息
@@ -159,6 +186,9 @@ teleport:
 tombstone:
   created: "&a你的墓碑已在 &f{location} &a创建!"
   removed: "&c你的墓碑已被移除!"
+  removed-by-owner: "&a你已成功移除自己的墓碑!"
+  use-right-click: "&e请右键点击墓碑来收集物品，而不是破坏它!"
+  admin-use-command: "&c墓碑头颅受到保护，无法破坏！请使用管理员指令 &f/pdm remove {tombstone_id} &c来移除墓碑。"
   not-found: "&c未找到墓碑!"
   no-access: "&c你没有权限访问这个墓碑!"
   collected: "&a成功收集墓碑! 获得 {items} 个物品和 {exp} 点经验"
@@ -219,6 +249,7 @@ commands:
     gui: "&e/pdm gui &7- 打开传送GUI界面"
     teleport: "&e/pdm teleport <编号> &7- 传送到指定墓碑"
     reload: "&e/pdm reload &7- 重新加载配置文件 &c(管理员)"
+    cleanup: "&e/pdm cleanup &7- 清理残留的墓碑实体 &c(管理员)"
     info: "&e/pdm info &7- 查看插件信息"
   reload:
     success: "&a配置文件重新加载成功!"
@@ -230,4 +261,8 @@ commands:
     usage: "&c用法: /pdm teleport <墓碑编号>"
     invalid-number: "&c请输入有效的数字!"
     invalid-index: "&c无效的墓碑编号! 有效范围: 1-{max}"
+  cleanup:
+    start: "&e正在清理残留的墓碑实体..."
+    complete: "&a清理完成! 所有残留的墓碑实体已被移除"
+    error: "&c清理过程中发生错误，请查看控制台日志"
   info: "&6PlayerDeadManager &7v{version} &7by {author}"
